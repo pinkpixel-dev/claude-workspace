@@ -1,0 +1,15 @@
+{
+  "name": "claude-workspace",
+  "description": "The Workspace mod for Claude Code: a file browser, editor and source control pane",
+  "owner": {
+    "name": "Pink Pixel",
+    "url": "https://pinkpixel.dev"
+  },
+  "plugins": [
+    {
+      "name": "workspace",
+      "source": "./",
+      "description": "A pane with a file browser and editor plus VS Code style source control: diffs, stage, commit, push, pull and branch switching"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "workspace",
+  "version": "0.1.0",
+  "description": "A pane with a file browser and editor plus VS Code style source control: diffs, stage, commit, push, pull and branch switching",
+  "author": { "name": "Pink Pixel", "url": "https://pinkpixel.dev" },
+  "types": "./types/index.d.ts"
+}

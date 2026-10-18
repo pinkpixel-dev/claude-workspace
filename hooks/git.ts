@@ -1,0 +1,94 @@
+// Pure git helpers: no `$`, so the tests can run them directly.
+import type { Change } from '../types'
+import { C } from './theme'
+
+export type StatusSummary = {
+  branch: string
+  upstream?: string
+  ahead: number
+  behind: number
+  changes: Change[]
+}
+
+// The most characters the `Code` element draws in one go.
+export const CODE_LIMIT = 100000
+
+// Reads `git status --porcelain=v1 -z --branch`.
+export const parseStatus = (out: string): StatusSummary => {
+  const records = out.split('\0').filter(record => record !== '')
+  const summary: StatusSummary = { branch: '', ahead: 0, behind: 0, changes: [] }
+
+  for (let i = 0; i < records.length; i += 1) {
+    const record = records[i]
+
+    if (record.startsWith('## ')) {
+      Object.assign(summary, parseBranchLine(record.slice(3)))
+      continue
+    }
+
+    const index = record[0]
+    const work = record[1]
+    summary.changes.push({ path: record.slice(3), index, work })
+
+    // Renames and copies carry the original path as the next record.
+    if (index === 'R' || index === 'C') {
+      i += 1
+    }
+  }
+
+  return summary
+}
+
+const parseBranchLine = (line: string) => {
+  const fresh = line.match(/^(?:No commits yet on|Initial commit on) (.+)$/)
+  if (fresh) {
+    return { branch: fresh[1], upstream: undefined, ahead: 0, behind: 0 }
+  }
+
+  const match = line.match(/^(.+?)(?:\.\.\.(\S+))?(?: \[(.+)\])?$/)
+  const track = match?.[3] ?? ''
+
+  return {
+    branch: match?.[1] ?? line,
+    upstream: match?.[2],
+    ahead: Number(track.match(/ahead (\d+)/)?.[1] ?? 0),
+    behind: Number(track.match(/behind (\d+)/)?.[1] ?? 0),
+  }
+}
+
+export const parseBranches = (out: string): string[] =>
+  out
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line !== '' && !line.startsWith('('))
+
+export const isStaged = (change: Change) =>
+  change.index !== ' ' && change.index !== '?'
+
+export const isUnstaged = (change: Change) => change.work !== ' '
+
+// The letter VS Code would show, untracked files reading as `U`.
+export const letterOf = (status: string) => (status === '?' ? 'U' : status)
+
+export const colorOf = (letter: string) => {
+  if (letter === 'A' || letter === 'U') return C.added
+  if (letter === 'D') return C.deleted
+  if (letter === 'R' || letter === 'C') return C.renamed
+
+  return C.modified
+}
+
+// Cuts a diff at a hunk boundary so the part shown still parses as a diff.
+export const limitDiff = (text: string, max = CODE_LIMIT) => {
+  if (text.length <= max) return text
+
+  const cut = text.lastIndexOf('\n@@', max)
+
+  return cut > 0 ? text.slice(0, cut + 1) : text.slice(0, text.lastIndexOf('\n', max) + 1)
+}
+
+export const isProtected = (branch: string) => branch === 'main' || branch === 'master'
+
+// First few lines of git's complaint, enough to act on in a small pane.
+export const shortError = (stderr: string, stdout: string) =>
+  (stderr.trim() || stdout.trim() || 'git failed').split('\n').slice(0, 4).join('\n')
