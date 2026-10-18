@@ -19,15 +19,16 @@ export const parseStatus = (out: string): StatusSummary => {
   const summary: StatusSummary = { branch: '', ahead: 0, behind: 0, changes: [] }
 
   for (let i = 0; i < records.length; i += 1) {
-    const record = records[i]
+    const record = records[i] ?? ''
 
     if (record.startsWith('## ')) {
       Object.assign(summary, parseBranchLine(record.slice(3)))
       continue
     }
 
-    const index = record[0]
-    const work = record[1]
+    // A space is git's "unchanged" letter, so a short record reads as no change.
+    const index = record[0] ?? ' '
+    const work = record[1] ?? ' '
     summary.changes.push({ path: record.slice(3), index, work })
 
     // Renames and copies carry the original path as the next record.
