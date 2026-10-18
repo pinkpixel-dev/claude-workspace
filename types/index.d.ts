@@ -25,13 +25,17 @@ export type Repo = {
   behind: number
   changes: Change[]
   branches: string[]
+  remotes: string[]
 }
 
 export type Diff = { path: string; isStaged: boolean; text: string }
 
 export type Notice = { kind: 'ok' | 'error'; text: string }
 
-export type Confirm = 'commit' | 'push'
+export type ConfirmAction = 'commit' | 'commit-all' | 'amend' | 'push' | 'discard' | 'discard-all'
+
+// A question the pane asks before a risky git step; `path` names the file a discard is for.
+export type Confirm = { action: ConfirmAction; question: string; yes: string; path?: string }
 
 declare module 'claude-code' {
   interface PluginState {

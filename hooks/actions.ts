@@ -1,31 +1,18 @@
-// Everything the pane's buttons do. Drawing never runs these: handlers and
-// events do, and the state they write redraws the pane.
+// What the Files tab's buttons do. Drawing never runs these: handlers and
+// events do, and the state they write redraws the pane. Source Control's
+// actions live in git-actions.ts.
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, ProcessRunInit } from 'claude-code'
+import type { EngineInterface } from 'claude-code'
 
-import type { Change, Entry } from '../types'
-import {
-  CODE_LIMIT,
-  isProtected,
-  isStaged,
-  limitDiff,
-  parseBranches,
-  parseStatus,
-  shortError,
-} from './git'
-import { EMPTY_REPO } from './state'
+import type { Entry } from '../types'
+import { CODE_LIMIT } from './git'
+import { fail, refreshRepo } from './repo'
 
-const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
-const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
-const diffState = atom({ plugin: 'workspace', key: 'diff' } as const, null)
 const dirState = atom({ plugin: 'workspace', key: 'dir' } as const, '')
 const draftState = atom({ plugin: 'workspace', key: 'draft' } as const, '')
 const entriesState = atom({ plugin: 'workspace', key: 'entries' } as const, [])
 const isEditingState = atom({ plugin: 'workspace', key: 'isEditing' } as const, false)
-const messageState = atom({ plugin: 'workspace', key: 'message' } as const, '')
-const noticeState = atom({ plugin: 'workspace', key: 'notice' } as const, null)
 const openFileState = atom({ plugin: 'workspace', key: 'openFile' } as const, null)
-const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
 
 type $ = EngineInterface
 
@@ -33,46 +20,6 @@ const MAX_OPEN_BYTES = 1024 * 1024
 
 const join = (parent: string, name: string) => (parent ? `${parent}/${name}` : name)
 const parentOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '')
-
-// No shell, no prompts: a push that needs a password fails fast instead of hanging.
-async function git($: $, args: string[], init: ProcessRunInit = {}) {
-  return $.process.run(['git', ...args], {
-    timeoutMs: 120000,
-    ...init,
-    env: { GIT_TERMINAL_PROMPT: '0', ...init.env },
-  })
-}
-
-async function gitOk($: $, args: string[]) {
-  const { root } = await read($, repoState)
-  const ran = await git($, args, { cwd: root })
-  if (ran.exitCode !== 0) throw new Error(shortError(ran.stderr, ran.stdout))
-
-  return ran
-}
-
-function fail($: $, error: unknown) {
-  return update($, noticeState, () => ({
-    kind: 'error' as const,
-    text: error instanceof Error ? error.message : String(error),
-  }))
-}
-
-// Runs one git action with a busy label, then refreshes what it may have changed.
-async function run($: $, label: string, work: () => Promise<void>) {
-  if ((await read($, busyState)) !== null) return
-
-  await update($, busyState, () => label)
-  await update($, noticeState, () => null)
-  try {
-    await work()
-  } catch (error) {
-    await fail($, error)
-  } finally {
-    await update($, busyState, () => null)
-    await refreshRepo($)
-  }
-}
 
 // Files
 
@@ -163,140 +110,14 @@ export async function save($: $, text: string) {
   }
 }
 
-// Source control
+// Picks up what a git step did to the open file: reloads it, or closes it once it's gone.
+export async function reloadFile($: $) {
+  const file = await read($, openFileState)
+  if (file === null || (await read($, isEditingState))) return
 
-export async function refreshRepo($: $) {
-  const top = await git($, ['rev-parse', '--show-toplevel']).catch(() => null)
-
-  if (top === null || top.exitCode !== 0) {
-    await update($, repoState, current => ({ ...current, isRepo: false, changes: [] }))
-    return
-  }
-
-  const root = top.stdout.trim()
-  const [status, branches] = await Promise.all([
-    git($, ['status', '--porcelain=v1', '-z', '--branch'], { cwd: root }),
-    git($, ['branch', '--format=%(refname:short)'], { cwd: root }),
-  ])
-  const summary = parseStatus(status.stdout)
-  await update($, repoState, () => ({
-    isRepo: true,
-    root,
-    ...summary,
-    branches: parseBranches(branches.stdout),
-  }))
-
-  // Keep an open diff in step, or close it once the file has no changes left.
-  const shown = await read($, diffState)
-  if (shown !== null) {
-    const change = summary.changes.find(one => one.path === shown.path)
-    const isStill = change !== undefined && (shown.isStaged ? isStaged(change) : change.work !== ' ')
-    if (isStill) await showDiff($, change, shown.isStaged)
-    else await update($, diffState, () => null)
-  }
-}
-
-export async function showDiff($: $, change: Change, staged: boolean) {
-  const { root } = await read($, repoState)
-  const args = change.index === '?'
-    ? ['diff', '--no-index', '--', '/dev/null', change.path]
-    : ['diff', ...(staged ? ['--cached'] : []), '--', change.path]
-  // `--no-index` exits 1 when the files differ, so the exit code is not checked.
-  const ran = await git($, args, { cwd: root })
-  await update($, diffState, () => ({ path: change.path, isStaged: staged, text: limitDiff(ran.stdout) }))
-}
-
-export function closeDiff($: $) {
-  return update($, diffState, () => null)
-}
-
-export function stage($: $, path: string) {
-  return run($, 'Staging', async () => {
-    await gitOk($, ['add', '-A', '--', path])
-  })
-}
-
-export function stageAll($: $) {
-  return run($, 'Staging', async () => {
-    await gitOk($, ['add', '-A'])
-  })
-}
-
-export function unstage($: $, path: string) {
-  return run($, 'Unstaging', async () => {
-    // `restore --staged` needs a first commit; `rm --cached` covers a fresh repo.
-    await gitOk($, ['restore', '--staged', '--', path])
-      .catch(() => gitOk($, ['rm', '--cached', '-r', '-q', '--', path]))
-  })
-}
-
-export function setMessage($: $, text: string) {
-  return update($, messageState, () => text)
-}
-
-export function cancelConfirm($: $) {
-  return update($, confirmState, () => null)
-}
-
-export async function commit($: $) {
-  const text = (await read($, messageState)).trim()
-  const current = await read($, repoState)
-
-  if (text === '') return fail($, new Error('Type a commit message first.'))
-  if (!current.changes.some(isStaged)) return fail($, new Error('Nothing staged. Stage some changes first.'))
-  if (isProtected(current.branch) && (await read($, confirmState)) !== 'commit') {
-    return update($, confirmState, () => 'commit' as const)
-  }
-
-  await update($, confirmState, () => null)
-  await run($, 'Committing', async () => {
-    const ran = await gitOk($, ['commit', '-m', text])
-    await update($, messageState, () => '')
-    $.ui.toast(ran.stdout.split('\n')[0] || 'Committed')
-  })
-}
-
-export async function push($: $) {
-  const current = await read($, repoState)
-
-  if (isProtected(current.branch) && (await read($, confirmState)) !== 'push') {
-    return update($, confirmState, () => 'push' as const)
-  }
-
-  await update($, confirmState, () => null)
-  await run($, 'Pushing', async () => {
-    await gitOk($, current.upstream ? ['push'] : ['push', '-u', 'origin', current.branch])
-    $.ui.toast(`Pushed ${current.branch}`)
-  })
-}
-
-export function pull($: $) {
-  return run($, 'Pulling', async () => {
-    const ran = await gitOk($, ['pull', '--no-edit'])
-    $.ui.toast(ran.stdout.split('\n')[0] || 'Pulled')
-    await refreshDir($)
-  })
-}
-
-// Runs in the session's folder, since there is no repo root to run from yet.
-export function initRepo($: $) {
-  return run($, 'Initializing', async () => {
-    const ran = await git($, ['init', '-b', 'main'])
-    if (ran.exitCode !== 0) throw new Error(shortError(ran.stderr, ran.stdout))
-    $.ui.toast('Initialized an empty git repository')
-  })
-}
-
-export async function switchBranch($: $, name: string) {
-  const current = await read($, repoState)
-  if (name === current.branch) return
-
-  await run($, 'Switching', async () => {
-    await gitOk($, ['switch', name])
-    $.ui.toast(`Switched to ${name}`)
-    if (!(await read($, isEditingState))) await closeFile($)
-    await refreshDir($)
-  })
+  const exists = await $.fs.stat(file.path).then(() => true, () => false)
+  if (exists) await openPath($, file.path)
+  else await closeFile($)
 }
 
 export async function refreshAll($: $) {

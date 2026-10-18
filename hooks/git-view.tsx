@@ -3,22 +3,26 @@ import type { EngineInterface } from 'claude-code'
 
 import type { Change } from '../types'
 import {
+  amend,
   cancelConfirm,
-  closeDiff,
   commit,
+  commitAll,
+  confirmYes,
+  discard,
+  discardAll,
+  fetchRemote,
   initRepo,
   pull,
   push,
-  refreshRepo,
   setMessage,
-  showDiff,
   stage,
   stageAll,
   switchBranch,
   unstage,
-} from './actions'
+} from './git-actions'
 import { chip } from './controls'
 import { colorOf, isStaged, isUnstaged, letterOf } from './git'
+import { closeDiff, refreshRepo, showDiff } from './repo'
 import { EMPTY_REPO } from './state'
 import { C } from './theme'
 import type { UI } from './ui'
@@ -47,12 +51,20 @@ function drawRow($: $, ui: UI, change: Change, staged: boolean) {
         <Text color={C.text}>{name}</Text>
         <Text color={C.faint}>{folder ? `  ${folder}` : ''}</Text>
       </Button>
-      {chip(ui, {
-        key: `${staged ? 'unstage' : 'stage'}:${change.path}`,
-        label: staged ? '−' : '+',
-        kind: 'quiet',
-        onPress: () => (staged ? unstage($, change.path) : stage($, change.path)),
-      })}
+      <Box gap={1}>
+        {!staged && chip(ui, {
+          key: `discard:${change.path}`,
+          label: '↺',
+          kind: 'quiet',
+          onPress: () => discard($, change),
+        })}
+        {chip(ui, {
+          key: `${staged ? 'unstage' : 'stage'}:${change.path}`,
+          label: staged ? '−' : '+',
+          kind: 'quiet',
+          onPress: () => (staged ? unstage($, change.path) : stage($, change.path)),
+        })}
+      </Box>
     </Box>
   )
 }
@@ -62,9 +74,17 @@ function drawSection($: $, ui: UI, title: string, changes: Change[], staged: boo
 
   return (
     <Box key={`section:${title}`} flexDirection="column">
-      <Box gap={1}>
-        <Text color={C.text} bold>{title}</Text>
-        <Text color={C.faint}>{String(changes.length)}</Text>
+      <Box justifyContent="space-between" gap={1}>
+        <Box gap={1}>
+          <Text color={C.text} bold>{title}</Text>
+          <Text color={C.faint}>{String(changes.length)}</Text>
+        </Box>
+        {!staged && changes.length > 0 && chip(ui, {
+          key: 'discard-all',
+          label: 'Discard all',
+          kind: 'quiet',
+          onPress: () => discardAll($),
+        })}
       </Box>
       {changes.length === 0 && <Text color={C.faint}>Working tree clean.</Text>}
       {changes.map(change => drawRow($, ui, change, staged))}
@@ -129,6 +149,7 @@ export async function drawGit($: $, ui: UI) {
           <Text color={repo.ahead + repo.behind > 0 ? C.busy : C.faint}>{`↑${repo.ahead} ↓${repo.behind}`}</Text>
         </Box>
         <Box gap={1}>
+          {chip(ui, { key: 'fetch', label: 'Fetch', onPress: () => fetchRemote($) })}
           {chip(ui, { key: 'pull', label: 'Pull', onPress: () => pull($) })}
           {chip(ui, { key: 'push', label: 'Push', onPress: () => push($) })}
           {chip(ui, { key: 'refresh', label: '↻', kind: 'quiet', onPress: () => refreshRepo($) })}
@@ -147,19 +168,16 @@ export async function drawGit($: $, ui: UI) {
         />
         <Box gap={1}>
           {chip(ui, { key: 'commit', label: 'Commit', kind: 'primary', onPress: () => commit($) })}
+          {chip(ui, { key: 'amend', label: 'Amend', onPress: () => amend($) })}
+          {unstaged.length > 0 && chip(ui, { key: 'commit-all', label: 'Commit all', onPress: () => commitAll($) })}
           {unstaged.length > 0 && chip(ui, { key: 'stage-all', label: 'Stage all', onPress: () => stageAll($) })}
         </Box>
       </Box>
 
       {confirm !== null && (
         <Box gap={1} flexWrap="wrap">
-          <Text color={C.modified}>{`${confirm === 'commit' ? 'Commit' : 'Push'} straight to ${repo.branch}?`}</Text>
-          {chip(ui, {
-            key: 'confirm-yes',
-            label: confirm === 'commit' ? 'Yes, commit' : 'Yes, push',
-            kind: 'primary',
-            onPress: () => (confirm === 'commit' ? commit($) : push($)),
-          })}
+          <Text color={confirm.action.startsWith('discard') ? C.deleted : C.modified}>{confirm.question}</Text>
+          {chip(ui, { key: 'confirm-yes', label: confirm.yes, kind: 'primary', onPress: () => confirmYes($) })}
           {chip(ui, { key: 'confirm-no', label: 'Cancel', onPress: () => cancelConfirm($) })}
         </Box>
       )}

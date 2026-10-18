@@ -10,4 +10,5 @@ export const EMPTY_REPO: Repo = {
   behind: 0,
   changes: [],
   branches: [],
+  remotes: [],
 }

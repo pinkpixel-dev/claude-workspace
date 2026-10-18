@@ -1,5 +1,5 @@
 // Pure git helpers: no `$`, so the tests can run them directly.
-import type { Change } from '../types'
+import type { Change, Repo } from '../types'
 import { C } from './theme'
 
 export type StatusSummary = {
@@ -62,6 +62,12 @@ export const parseBranches = (out: string): string[] =>
     .map(line => line.trim())
     .filter(line => line !== '' && !line.startsWith('('))
 
+export const parseRemotes = (out: string): string[] =>
+  out
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line !== '')
+
 export const isStaged = (change: Change) =>
   change.index !== ' ' && change.index !== '?'
 
@@ -88,6 +94,17 @@ export const limitDiff = (text: string, max = CODE_LIMIT) => {
 }
 
 export const isProtected = (branch: string) => branch === 'main' || branch === 'master'
+
+// The last commit is on the remote already, so amending it rewrites shared history.
+export const isPushed = (repo: Pick<Repo, 'upstream' | 'ahead'>) => repo.upstream !== undefined && repo.ahead === 0
+
+export const isUntracked = (change: Change) => change.work === '?'
+
+// Throws away a file's working tree changes; an untracked file is deleted outright.
+export const discardArgs = (change: Change) =>
+  isUntracked(change)
+    ? ['clean', '-f', '-d', '-q', '--', change.path]
+    : ['restore', '--worktree', '--', change.path]
 
 // First few lines of git's complaint, enough to act on in a small pane.
 export const shortError = (stderr: string, stdout: string) =>

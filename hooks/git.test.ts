@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { isStaged, isUnstaged, limitDiff, parseBranches, parseStatus } from './git'
+import { discardArgs, isPushed, isStaged, isUnstaged, limitDiff, parseBranches, parseRemotes, parseStatus } from './git'
 
 describe('parseStatus', () => {
   test('reads branch tracking and every kind of change', async () => {
@@ -58,4 +58,20 @@ test('limitDiff cuts on a hunk boundary', async () => {
   expect(cut.endsWith('+b\n')).toBe(true)
   expect(cut.split('@@ -1').length - 1).toBe(2)
   expect(limitDiff(text)).toBe(text)
+})
+
+test('parseRemotes reads one remote per line', async () => {
+  expect(parseRemotes('origin\nupstream\n\n')).toEqual(['origin', 'upstream'])
+  expect(parseRemotes('')).toEqual([])
+})
+
+test('isPushed only when the branch tracks a remote and nothing is ahead', async () => {
+  expect(isPushed({ upstream: 'origin/dev', ahead: 0 })).toBe(true)
+  expect(isPushed({ upstream: 'origin/dev', ahead: 2 })).toBe(false)
+  expect(isPushed({ upstream: undefined, ahead: 0 })).toBe(false)
+})
+
+test('discardArgs restores tracked files and cleans untracked ones', async () => {
+  expect(discardArgs({ path: 'src/a.ts', index: ' ', work: 'M' })).toEqual(['restore', '--worktree', '--', 'src/a.ts'])
+  expect(discardArgs({ path: 'notes.md', index: '?', work: '?' })).toEqual(['clean', '-f', '-d', '-q', '--', 'notes.md'])
 })

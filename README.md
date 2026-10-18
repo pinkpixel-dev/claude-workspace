@@ -18,8 +18,11 @@ I made it because I kept jumping out to my editor just to check what changed or 
 - Staged and unstaged changes, colored the way VS Code does it (added, modified, deleted, renamed)
 - Click a file to see its diff, and use `+` and `−` to stage or unstage it
 - **Stage all** for everything at once
+- `↺` on a file throws away its changes, and **Discard all** does the whole list. Both ask first
 - A commit message box with a **Commit** button (Enter commits too)
-- **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch
+- **Amend** to fold staged changes into your last commit, and **Commit all** to stage everything and commit in one go
+- **Fetch**, **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch
+- A quiet fetch every 3 minutes while the pane is showing, so the ahead/behind counts stay current
 - A branch picker that switches branches for you
 - A confirm step before committing or pushing straight to `main` or `master`
 - An **Initialize Repository** button when the folder isn't a git repo yet (it runs `git init -b main`)
@@ -66,7 +69,9 @@ Click the tabs at the top, or focus the pane and use Tab, the arrow keys and Ent
 A few things worth knowing:
 
 - In the editor, Enter saves. You get a new line the same way you do in the Claude Code prompt box.
-- Commit only commits what's staged. If nothing is staged, the pane tells you instead of guessing.
+- Commit only commits what's staged. If nothing is staged, the pane tells you instead of guessing. Use **Commit all** if you want everything in.
+- Discarding an untracked file deletes it. It was never in git, so there's no getting it back.
+- Amend with an empty message box keeps the old commit message. Type one to replace it. If the commit is already pushed, the pane warns you first, since pushing it again needs a force push (which the pane doesn't do).
 - If your branch has no upstream yet, Push runs `git push -u origin <branch>` for you.
 - Pull runs `git pull --no-edit`, so a merge never stops to open an editor.
 
@@ -76,7 +81,7 @@ A few things worth knowing:
 - **Push and pull won't ask for a password.** They need an SSH key or a git credential helper already set up. Without one they fail fast and show git's error instead of hanging.
 - **The editor is a plain text box.** It's good for quick edits, but there's no highlighting while you type, no multi-cursor and no real undo history.
 - **Big and binary files are view only.** Files over 1 MB don't open, binary files show a note, and very long files show the start and can't be edited.
-- **No discard button.** I left it out on purpose because it throws work away. I might add one later with a confirm step.
+- **The background fetch is silent.** If it fails (no network, a key that needs a passphrase), it just skips that round. Hit **Fetch** to see the actual error.
 - **Mobile isn't supported.** The pane needs text inputs, which the mobile app doesn't have.
 - The pane opens at any width when you run `/workspace`, but it's way nicer with a wide terminal.
 
@@ -91,7 +96,9 @@ hooks/
   register.tsx     /workspace command, refresh after each turn, the pane frame and tabs
   files-view.tsx   file browser, viewer and editor
   git-view.tsx     branch picker, commit box, change lists and diffs
-  actions.ts       what the buttons do: file reads and writes, git commands
+  actions.ts       what the Files tab's buttons do: file reads and writes
+  git-actions.ts   what the Source Control buttons do, plus the background fetch
+  repo.ts          shared git plumbing: running git, errors, reading repo status
   git.ts           parses git output (no Claude Code calls, so it's easy to test)
   controls.tsx     shared chip buttons, tabs and divider
   theme.ts         color tokens

@@ -1,7 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import { openPath, refreshAll, refreshRepo } from './actions'
+import { openPath, refreshAll } from './actions'
+import { autoFetch, FETCH_EVERY_MS } from './git-actions'
+import { refreshRepo } from './repo'
 import { drawFiles } from './files-view'
 import { drawGit } from './git-view'
 import { divider, tab as navTab } from './controls'
@@ -21,6 +23,7 @@ export const register: Register = on => {
       description: 'Open the file browser and source control pane',
     })
     void refreshAll($)
+    $.clock.every(FETCH_EVERY_MS, () => void autoFetch($))
 
     return next(e)
   })

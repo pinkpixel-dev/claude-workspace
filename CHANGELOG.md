@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### ✨ Source Control
+
+- `↺` button on each changed file to discard its changes, plus **Discard all**. Both ask before throwing anything away, and untracked files get deleted.
+- **Amend** folds staged changes into the last commit. An empty message keeps the old one, and amending a commit that's already pushed warns you first.
+- **Commit all** stages everything (untracked files too) and commits in one step.
+- **Fetch** button, plus a quiet background fetch every 3 minutes while the pane is showing.
+
+### 🧹 Maintenance
+
+- Split the git code out of `actions.ts` into `repo.ts` (shared plumbing) and `git-actions.ts` (Source Control actions).
+
 ## 0.2.0 - October 18, 2026
 
 ### ✨ Source Control
