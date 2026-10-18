@@ -278,6 +278,15 @@ export function pull($: $) {
   })
 }
 
+// Runs in the session's folder, since there is no repo root to run from yet.
+export function initRepo($: $) {
+  return run($, 'Initializing', async () => {
+    const ran = await git($, ['init', '-b', 'main'])
+    if (ran.exitCode !== 0) throw new Error(shortError(ran.stderr, ran.stdout))
+    $.ui.toast('Initialized an empty git repository')
+  })
+}
+
 export async function switchBranch($: $, name: string) {
   const current = await read($, repoState)
   if (name === current.branch) return

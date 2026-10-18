@@ -22,6 +22,7 @@ I made it because I kept jumping out to my editor just to check what changed or 
 - **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch
 - A branch picker that switches branches for you
 - A confirm step before committing or pushing straight to `main` or `master`
+- An **Initialize Repository** button when the folder isn't a git repo yet (it runs `git init -b main`)
 
 The pane draws its own dark theme, so it looks the same no matter which Claude Code theme you use.
 

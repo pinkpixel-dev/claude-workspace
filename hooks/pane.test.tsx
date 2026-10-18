@@ -115,3 +115,31 @@ test('picking a branch switches to it', async ($, on) => {
 
   expect(ran).toContainEqual(['switch', 'dev'])
 })
+
+test('a folder with no repo offers to initialize one', async ($, on) => {
+  const ran: string[][] = []
+  let isRepo = false
+
+  on('process.run', async ($, e) => {
+    const args = e.argv.slice(1)
+    ran.push([...args])
+    if (args[0] === 'init') isRepo = true
+    if (args[0] === 'rev-parse' && !isRepo) {
+      return { value: { ...ok('').value, exitCode: 128, stderr: 'fatal: not a git repository' } }
+    }
+    if (args[0] === 'rev-parse') return ok('/repo\n')
+    if (args[0] === 'status') return ok('## No commits yet on main\0')
+
+    return ok()
+  })
+  on('fs.list', async () => ({ value: [] }))
+  const ui = await openSourceControl($)
+
+  expect(await ui.find({ type: 'Text', text: "This folder isn't a git repository yet." })).toBeDefined()
+
+  await ui.press({ key: 'init' })
+
+  expect(ran).toContainEqual(['init', '-b', 'main'])
+  expect(await ui.find({ key: 'init' })).toBeUndefined()
+  expect(await ui.find({ key: 'commit' })).toBeDefined()
+})

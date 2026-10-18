@@ -6,6 +6,7 @@ import {
   cancelConfirm,
   closeDiff,
   commit,
+  initRepo,
   pull,
   push,
   refreshRepo,
@@ -76,7 +77,19 @@ export async function drawGit($: $, ui: UI) {
   const repo = await read($, repoState)
 
   if (!repo.isRepo) {
-    return <Text color={C.faint}>Not a git repository.</Text>
+    const busy = await read($, busyState)
+    const notice = await read($, noticeState)
+
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Text color={C.muted}>This folder isn't a git repository yet.</Text>
+        <Box>
+          {chip(ui, { key: 'init', label: 'Initialize Repository', kind: 'primary', onPress: () => initRepo($) })}
+        </Box>
+        {busy !== null && <Text color={C.busy}>{`${busy}...`}</Text>}
+        {notice !== null && <Text color={notice.kind === 'error' ? C.deleted : C.added}>{notice.text}</Text>}
+      </Box>
+    )
   }
 
   const diff = await read($, diffState)
