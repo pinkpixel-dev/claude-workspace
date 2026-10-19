@@ -10,11 +10,25 @@ What's in the pane:
 - **GitHub**: open pull requests and issues, with CI and review status
 - **Stats strip**: 5 hour and 7 day usage, context, model and cost along the top
 
-| Files | Viewing a file | Source Control |
-| :---: | :---: | :---: |
-| <img src="screenshots/file-list.png" width="260" alt="The Files tab listing a project's folders and files with their sizes"> | <img src="screenshots/file-view.png" width="260" alt="A Rust file open in the viewer with syntax highlighting and line numbers"> | <img src="screenshots/source-control.png" width="260" alt="The Source Control tab with the branch picker, Fetch, Pull and Push, and the Changes, History, Branches and Stash views"> |
-| **History** | **Branches** | **GitHub** |
-| <img src="screenshots/history.png" width="260" alt="The History view listing recent commits with their age, short hash and a Revert button"> | <img src="screenshots/branches.png" width="260" alt="The Branches view with Merge and Rebase, local branches with Switch, Rename and Delete, and remote branches with Check out"> | <img src="screenshots/github.png" width="260" alt="The GitHub tab listing a repo's open issues with their author, age and @ buttons"> |
+<div align="center">
+
+<table>
+  <tr>
+    <td align="center"><b>Files</b><br><img src="screenshots/file-list.png" width="225" alt="The Files tab listing a project's folders and files with their sizes"></td>
+    <td align="center"><b>Viewing a file</b><br><img src="screenshots/file-view.png" width="225" alt="A Rust file open in the viewer with syntax highlighting and line numbers"></td>
+    <td align="center"><b>This Turn</b><br><img src="screenshots/this-turn.png" width="225" alt="The This Turn tab listing five files Claude edited with their added and removed line counts, Review and revert buttons, under the stats strip"></td>
+    <td align="center"><b>Source Control</b><br><img src="screenshots/source-control.png" width="225" alt="The Source Control tab with the branch picker, Fetch, Pull and Push, and the Changes, History, Branches and Stash views"></td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td align="center"><b>History</b><br><img src="screenshots/history.png" width="225" alt="The History view listing recent commits with their age, short hash and a Revert button"></td>
+    <td align="center"><b>Branches</b><br><img src="screenshots/branches.png" width="225" alt="The Branches view with Merge and Rebase, local branches with Switch, Rename and Delete, and remote branches with Check out"></td>
+    <td align="center"><b>GitHub</b><br><img src="screenshots/github.png" width="225" alt="The GitHub tab listing a repo's open issues with their author, age and @ buttons"></td>
+  </tr>
+</table>
+
+</div>
 
 ## Features
 
