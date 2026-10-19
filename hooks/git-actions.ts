@@ -5,8 +5,19 @@ import type { EngineInterface } from 'claude-code'
 
 import type { Change, Confirm } from '../types'
 import { closeFile, refreshDir, reloadFile } from './actions'
-import { discardArgs, isProtected, isPushed, isStaged, isUnstaged, isUntracked, shortError } from './git'
-import { fail, git, gitOk, refreshRepo, run } from './repo'
+import {
+  discardArgs,
+  isProtected,
+  isPushed,
+  isStaged,
+  isUnstaged,
+  isUntracked,
+  pullArgs,
+  pushArgs,
+  shortError,
+} from './git'
+import { forceDeleteBranch } from './branch-actions'
+import { confirmed, fail, git, gitOk, refreshRepo, run } from './repo'
 import { EMPTY_REPO, PANE } from './state'
 
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
@@ -20,18 +31,6 @@ type $ = EngineInterface
 export const FETCH_EVERY_MS = 3 * 60 * 1000
 
 const nameOf = (path: string) => path.slice(path.lastIndexOf('/') + 1)
-
-// Asks the question the first time; true once the person said yes to this same step.
-async function confirmed($: $, ask: Confirm) {
-  const current = await read($, confirmState)
-  if (current !== null && current.action === ask.action && current.path === ask.path) {
-    await update($, confirmState, () => null)
-    return true
-  }
-
-  await update($, confirmState, () => ask)
-  return false
-}
 
 async function commitWith($: $, label: string, args: string[], fallback: string) {
   await update($, confirmState, () => null)
@@ -122,6 +121,8 @@ export async function confirmYes($: $) {
       return push($)
     case 'discard-all':
       return discardAll($)
+    case 'force-delete':
+      return forceDeleteBranch($, ask.path ?? '')
     case 'discard': {
       const change = (await read($, repoState)).changes.find(one => one.path === ask.path)
       if (change !== undefined) return discard($, change)
@@ -189,6 +190,7 @@ export async function amend($: $) {
 export async function push($: $) {
   const current = await read($, repoState)
 
+  if (current.remote === '') return fail($, new Error('No remote to push to.'))
   if (isProtected(current.branch)) {
     const ask: Confirm = { action: 'push', question: `Push straight to ${current.branch}?`, yes: 'Yes, push' }
     if (!(await confirmed($, ask))) return
@@ -196,25 +198,29 @@ export async function push($: $) {
 
   await update($, confirmState, () => null)
   await run($, 'Pushing', async () => {
-    await gitOk($, current.upstream ? ['push'] : ['push', '-u', 'origin', current.branch])
-    $.ui.toast(`Pushed ${current.branch}`)
+    await gitOk($, pushArgs(current))
+    $.ui.toast(`Pushed ${current.branch} to ${current.remote}`)
   })
 }
 
-export function pull($: $) {
-  return run($, 'Pulling', async () => {
-    const ran = await gitOk($, ['pull', '--no-edit'])
+export async function pull($: $) {
+  const current = await read($, repoState)
+  if (current.remote === '') return fail($, new Error('No remote to pull from.'))
+
+  await run($, 'Pulling', async () => {
+    const ran = await gitOk($, pullArgs(current))
     $.ui.toast(ran.stdout.split('\n')[0] || 'Pulled')
     await refreshDir($)
   })
 }
 
 export async function fetchRemote($: $) {
-  if ((await read($, repoState)).remotes.length === 0) return fail($, new Error('No remote to fetch from.'))
+  const { remote } = await read($, repoState)
+  if (remote === '') return fail($, new Error('No remote to fetch from.'))
 
   await run($, 'Fetching', async () => {
-    await gitOk($, ['fetch'])
-    $.ui.toast('Fetched')
+    await gitOk($, ['fetch', remote])
+    $.ui.toast(`Fetched ${remote}`)
   })
 }
 
@@ -225,10 +231,10 @@ export async function autoFetch($: $) {
   const current = await read($, repoState)
   const isShown = panes.some(pane => pane.id === PANE && pane.isShown)
 
-  if (!isShown || !current.isRepo || current.remotes.length === 0) return
+  if (!isShown || !current.isRepo || current.remote === '') return
   if ((await read($, busyState)) !== null) return
 
-  const ran = await git($, ['fetch', '--quiet'], { cwd: current.root }).catch(() => null)
+  const ran = await git($, ['fetch', '--quiet', current.remote], { cwd: current.root }).catch(() => null)
   if (ran !== null && ran.exitCode === 0) await refreshRepo($)
 }
 

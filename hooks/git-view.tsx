@@ -1,7 +1,7 @@
 import { atom, read } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Change } from '../types'
+import type { Change, Repo } from '../types'
 import {
   amend,
   cancelConfirm,
@@ -20,9 +20,11 @@ import {
   switchBranch,
   unstage,
 } from './git-actions'
-import { chip } from './controls'
+import { showView } from './branch-actions'
+import { drawBranches } from './branches-view'
+import { chip, tab } from './controls'
 import { colorOf, isStaged, isUnstaged, letterOf } from './git'
-import { closeDiff, refreshRepo, showDiff } from './repo'
+import { closeDiff, refreshRepo, selectRemote, showDiff } from './repo'
 import { EMPTY_REPO } from './state'
 import { C } from './theme'
 import type { UI } from './ui'
@@ -30,6 +32,7 @@ import type { UI } from './ui'
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
 const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
 const diffState = atom({ plugin: 'workspace', key: 'diff' } as const, null)
+const gitViewState = atom({ plugin: 'workspace', key: 'gitView' } as const, 'changes')
 const messageState = atom({ plugin: 'workspace', key: 'message' } as const, '')
 const noticeState = atom({ plugin: 'workspace', key: 'notice' } as const, null)
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
@@ -93,7 +96,7 @@ function drawSection($: $, ui: UI, title: string, changes: Change[], staged: boo
 }
 
 export async function drawGit($: $, ui: UI) {
-  const { Box, Code, Input, Select, Text } = ui
+  const { Box, Code, Select, Text } = ui
   const repo = await read($, repoState)
 
   if (!repo.isRepo) {
@@ -128,13 +131,29 @@ export async function drawGit($: $, ui: UI) {
     )
   }
 
-  const message = await read($, messageState)
+  const view = await read($, gitViewState)
   const busy = await read($, busyState)
   const notice = await read($, noticeState)
   const confirm = await read($, confirmState)
-  const staged = repo.changes.filter(isStaged)
-  const unstaged = repo.changes.filter(isUnstaged)
-  const branchNames = repo.branches.includes(repo.branch) ? repo.branches : [repo.branch || 'HEAD', ...repo.branches]
+  const branchNames = repo.branches.some(one => one.name === repo.branch)
+    ? repo.branches.map(one => one.name)
+    : [repo.branch || 'HEAD', ...repo.branches.map(one => one.name)]
+  const isRisky = confirm !== null && (confirm.action.startsWith('discard') || confirm.action === 'force-delete')
+
+  // The confirm row, busy label and notice, drawn where each view wants them.
+  const status = confirm === null && busy === null && notice === null ? null : (
+    <Box key="status" flexDirection="column" gap={1}>
+      {confirm !== null && (
+        <Box gap={1} flexWrap="wrap">
+          <Text color={isRisky ? C.deleted : C.modified}>{confirm.question}</Text>
+          {chip(ui, { key: 'confirm-yes', label: confirm.yes, kind: 'primary', onPress: () => confirmYes($) })}
+          {chip(ui, { key: 'confirm-no', label: 'Cancel', onPress: () => cancelConfirm($) })}
+        </Box>
+      )}
+      {busy !== null && <Text color={C.busy}>{`${busy}...`}</Text>}
+      {notice !== null && <Text color={notice.kind === 'error' ? C.deleted : C.added}>{notice.text}</Text>}
+    </Box>
+  )
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -146,6 +165,14 @@ export async function drawGit($: $, ui: UI) {
             options={branchNames.map(name => ({ value: name }))}
             onSelect={name => switchBranch($, name)}
           />
+          {repo.remotes.length > 1 && (
+            <Select
+              key="remote"
+              value={repo.remote}
+              options={repo.remotes.map(name => ({ value: name }))}
+              onSelect={name => selectRemote($, name)}
+            />
+          )}
           <Text color={repo.ahead + repo.behind > 0 ? C.busy : C.faint}>{`↑${repo.ahead} ↓${repo.behind}`}</Text>
         </Box>
         <Box gap={1}>
@@ -156,6 +183,24 @@ export async function drawGit($: $, ui: UI) {
         </Box>
       </Box>
 
+      <Box gap={1}>
+        {tab(ui, 'view-changes', 'Changes', view === 'changes', () => showView($, 'changes'))}
+        {tab(ui, 'view-branches', `Branches ${repo.branches.length}`, view === 'branches', () => showView($, 'branches'))}
+      </Box>
+
+      {view === 'branches' ? await drawBranches($, ui, repo, status) : await drawChanges($, ui, repo, status)}
+    </Box>
+  )
+}
+
+async function drawChanges($: $, ui: UI, repo: Repo, status: JSX.Element | null) {
+  const { Box, Input } = ui
+  const message = await read($, messageState)
+  const staged = repo.changes.filter(isStaged)
+  const unstaged = repo.changes.filter(isUnstaged)
+
+  return (
+    <Box key="changes" flexDirection="column" gap={1}>
       <Box flexDirection="column" gap={1}>
         <Input
           key="message"
@@ -174,15 +219,7 @@ export async function drawGit($: $, ui: UI) {
         </Box>
       </Box>
 
-      {confirm !== null && (
-        <Box gap={1} flexWrap="wrap">
-          <Text color={confirm.action.startsWith('discard') ? C.deleted : C.modified}>{confirm.question}</Text>
-          {chip(ui, { key: 'confirm-yes', label: confirm.yes, kind: 'primary', onPress: () => confirmYes($) })}
-          {chip(ui, { key: 'confirm-no', label: 'Cancel', onPress: () => cancelConfirm($) })}
-        </Box>
-      )}
-      {busy !== null && <Text color={C.busy}>{`${busy}...`}</Text>}
-      {notice !== null && <Text color={notice.kind === 'error' ? C.deleted : C.added}>{notice.text}</Text>}
+      {status}
 
       {staged.length > 0 && drawSection($, ui, 'Staged Changes', staged, true)}
       {drawSection($, ui, 'Changes', unstaged, false)}

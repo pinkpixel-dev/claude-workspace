@@ -1,5 +1,5 @@
 // Pure git helpers: no `$`, so the tests can run them directly.
-import type { Change, Repo } from '../types'
+import type { Branch, Change, Repo } from '../types'
 import { C } from './theme'
 
 export type StatusSummary = {
@@ -57,17 +57,54 @@ const parseBranchLine = (line: string) => {
   }
 }
 
-export const parseBranches = (out: string): string[] =>
+// The `git branch` format parseBranches reads: name, upstream, tracking, tab separated.
+export const BRANCH_FORMAT = '--format=%(refname:short)%09%(upstream:short)%09%(upstream:track)'
+
+export const parseBranches = (out: string): Branch[] =>
   out
     .split('\n')
-    .map(line => line.trim())
-    .filter(line => line !== '' && !line.startsWith('('))
+    .filter(line => line.trim() !== '' && !line.startsWith('('))
+    .map(line => {
+      const [name = '', upstream = '', track = ''] = line.split('\t')
+
+      return {
+        name: name.trim(),
+        upstream: upstream.trim() || undefined,
+        ahead: Number(track.match(/ahead (\d+)/)?.[1] ?? 0),
+        behind: Number(track.match(/behind (\d+)/)?.[1] ?? 0),
+        isGone: track.trim() === '[gone]',
+      }
+    })
 
 export const parseRemotes = (out: string): string[] =>
   out
     .split('\n')
     .map(line => line.trim())
     .filter(line => line !== '')
+
+// Which remote the branch's upstream lives on, if it has one.
+export const upstreamRemote = (repo: Pick<Repo, 'upstream' | 'remotes'>) =>
+  repo.remotes.find(remote => repo.upstream?.startsWith(`${remote}/`))
+
+// The remote to use: the one picked last for this repo, else the upstream's, else origin.
+export const pickRemote = (remotes: string[], saved: unknown, upstream?: string) => {
+  if (typeof saved === 'string' && remotes.includes(saved)) return saved
+
+  return upstreamRemote({ upstream, remotes }) ?? (remotes.includes('origin') ? 'origin' : remotes[0] ?? '')
+}
+
+// A branch tracking the picked remote pushes plainly; any other push names it.
+export const pushArgs = (repo: Pick<Repo, 'upstream' | 'remotes' | 'remote' | 'branch'>) => {
+  if (repo.upstream === undefined) return ['push', '-u', repo.remote, repo.branch]
+  if (upstreamRemote(repo) === repo.remote) return ['push']
+
+  return ['push', repo.remote, repo.branch]
+}
+
+export const pullArgs = (repo: Pick<Repo, 'upstream' | 'remotes' | 'remote' | 'branch'>) =>
+  upstreamRemote(repo) === repo.remote
+    ? ['pull', '--no-edit']
+    : ['pull', '--no-edit', repo.remote, repo.branch]
 
 export const isStaged = (change: Change) =>
   change.index !== ' ' && change.index !== '?'

@@ -206,7 +206,7 @@ test('fetch runs git fetch', async ($, on) => {
 
   await ui.press({ key: 'fetch' })
 
-  expect(ran).toContainEqual(['fetch'])
+  expect(ran).toContainEqual(['fetch', 'origin'])
 })
 
 test('the pane fetches on its own every few minutes while it is shown', async ($, on) => {
@@ -220,8 +220,8 @@ test('the pane fetches on its own every few minutes while it is shown', async ($
 
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
   await clock.advance(60 * 1000)
-  expect(ran).not.toContainEqual(['fetch', '--quiet'])
+  expect(ran).not.toContainEqual(['fetch', '--quiet', 'origin'])
 
   await clock.advance(2 * 60 * 1000)
-  expect(ran).toContainEqual(['fetch', '--quiet'])
+  expect(ran).toContainEqual(['fetch', '--quiet', 'origin'])
 })

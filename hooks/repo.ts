@@ -3,11 +3,21 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, ProcessRunInit } from 'claude-code'
 
-import type { Change } from '../types'
-import { isStaged, limitDiff, parseBranches, parseRemotes, parseStatus, shortError } from './git'
+import type { Change, Confirm } from '../types'
+import {
+  BRANCH_FORMAT,
+  isStaged,
+  limitDiff,
+  parseBranches,
+  parseRemotes,
+  parseStatus,
+  pickRemote,
+  shortError,
+} from './git'
 import { EMPTY_REPO } from './state'
 
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
+const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
 const diffState = atom({ plugin: 'workspace', key: 'diff' } as const, null)
 const noticeState = atom({ plugin: 'workspace', key: 'notice' } as const, null)
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
@@ -29,6 +39,21 @@ export async function gitOk($: $, args: string[]) {
   if (ran.exitCode !== 0) throw new Error(shortError(ran.stderr, ran.stdout))
 
   return ran
+}
+
+// Where the remote picked for a repo is kept, so the choice outlives the session.
+const remoteKey = (root: string) => `remote:${root}`
+
+// Asks the question the first time; true once the person said yes to this same step.
+export async function confirmed($: $, ask: Confirm) {
+  const current = await read($, confirmState)
+  if (current !== null && current.action === ask.action && current.path === ask.path) {
+    await update($, confirmState, () => null)
+    return true
+  }
+
+  await update($, confirmState, () => ask)
+  return false
 }
 
 export function fail($: $, error: unknown) {
@@ -65,16 +90,19 @@ export async function refreshRepo($: $) {
   const root = top.stdout.trim()
   const [status, branches, remotes] = await Promise.all([
     git($, ['status', '--porcelain=v1', '-z', '--branch'], { cwd: root }),
-    git($, ['branch', '--format=%(refname:short)'], { cwd: root }),
+    git($, ['branch', BRANCH_FORMAT], { cwd: root }),
     git($, ['remote'], { cwd: root }),
   ])
   const summary = parseStatus(status.stdout)
+  const remoteNames = parseRemotes(remotes.stdout)
+  const saved = await $.store.get(remoteKey(root)).catch(() => undefined)
   await update($, repoState, () => ({
     isRepo: true,
     root,
     ...summary,
     branches: parseBranches(branches.stdout),
-    remotes: parseRemotes(remotes.stdout),
+    remotes: remoteNames,
+    remote: pickRemote(remoteNames, saved, summary.upstream),
   }))
 
   // Keep an open diff in step, or close it once the file has no changes left.
@@ -85,6 +113,12 @@ export async function refreshRepo($: $) {
     if (isStill) await showDiff($, change, shown.isStaged)
     else await update($, diffState, () => null)
   }
+}
+
+export async function selectRemote($: $, name: string) {
+  const { root } = await read($, repoState)
+  await update($, repoState, current => ({ ...current, remote: name }))
+  await $.store.set(remoteKey(root), name).catch(() => undefined)
 }
 
 export async function showDiff($: $, change: Change, staged: boolean) {

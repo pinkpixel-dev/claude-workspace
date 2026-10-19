@@ -1,6 +1,18 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { discardArgs, isPushed, isStaged, isUnstaged, limitDiff, parseBranches, parseRemotes, parseStatus } from './git'
+import {
+  discardArgs,
+  isPushed,
+  isStaged,
+  isUnstaged,
+  limitDiff,
+  parseBranches,
+  parseRemotes,
+  parseStatus,
+  pickRemote,
+  pullArgs,
+  pushArgs,
+} from './git'
 
 describe('parseStatus', () => {
   test('reads branch tracking and every kind of change', async () => {
@@ -46,8 +58,20 @@ describe('parseStatus', () => {
   })
 })
 
-test('parseBranches drops blank lines and detached HEAD', async () => {
-  expect(parseBranches('main\n(HEAD detached at 1a2b3c)\ndev\n\n')).toEqual(['main', 'dev'])
+test('parseBranches reads tracking and drops blank lines and detached HEAD', async () => {
+  const out = [
+    '(HEAD detached at 1a2b3c)\t\t',
+    'main\torigin/main\t[ahead 1, behind 2]',
+    'dev\t\t',
+    'old\torigin/old\t[gone]',
+    '',
+  ].join('\n')
+
+  expect(parseBranches(out)).toEqual([
+    { name: 'main', upstream: 'origin/main', ahead: 1, behind: 2, isGone: false },
+    { name: 'dev', upstream: undefined, ahead: 0, behind: 0, isGone: false },
+    { name: 'old', upstream: 'origin/old', ahead: 0, behind: 0, isGone: true },
+  ])
 })
 
 test('limitDiff cuts on a hunk boundary', async () => {
@@ -74,4 +98,22 @@ test('isPushed only when the branch tracks a remote and nothing is ahead', async
 test('discardArgs restores tracked files and cleans untracked ones', async () => {
   expect(discardArgs({ path: 'src/a.ts', index: ' ', work: 'M' })).toEqual(['restore', '--worktree', '--', 'src/a.ts'])
   expect(discardArgs({ path: 'notes.md', index: '?', work: '?' })).toEqual(['clean', '-f', '-d', '-q', '--', 'notes.md'])
+})
+
+test('pickRemote prefers the saved choice, then the upstream, then origin', async () => {
+  expect(pickRemote(['origin', 'fork'], 'fork', 'origin/dev')).toBe('fork')
+  expect(pickRemote(['origin', 'fork'], 'gone', 'fork/dev')).toBe('fork')
+  expect(pickRemote(['fork', 'origin'], undefined)).toBe('origin')
+  expect(pickRemote(['fork'], undefined)).toBe('fork')
+  expect(pickRemote([], undefined)).toBe('')
+})
+
+test('push and pull name the remote unless it is the upstream one', async () => {
+  const repo = { branch: 'dev', remotes: ['origin', 'fork'], upstream: 'origin/dev', remote: 'origin' }
+
+  expect(pushArgs(repo)).toEqual(['push'])
+  expect(pullArgs(repo)).toEqual(['pull', '--no-edit'])
+  expect(pushArgs({ ...repo, remote: 'fork' })).toEqual(['push', 'fork', 'dev'])
+  expect(pullArgs({ ...repo, remote: 'fork' })).toEqual(['pull', '--no-edit', 'fork', 'dev'])
+  expect(pushArgs({ ...repo, upstream: undefined, remote: 'fork' })).toEqual(['push', '-u', 'fork', 'dev'])
 })

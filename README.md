@@ -24,6 +24,8 @@ I made it because I kept jumping out to my editor just to check what changed or 
 - **Fetch**, **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch
 - A quiet fetch every 3 minutes while the pane is showing, so the ahead/behind counts stay current
 - A branch picker that switches branches for you
+- A **Branches** view listing your local branches with what each one tracks, plus **+ New branch**, **Rename** and **Delete**
+- A remote picker when the repo has more than one remote. Push, Pull and Fetch use it, and the pane remembers your pick for that repo
 - A confirm step before committing or pushing straight to `main` or `master`
 - An **Initialize Repository** button when the folder isn't a git repo yet (it runs `git init -b main`)
 
@@ -72,8 +74,10 @@ A few things worth knowing:
 - Commit only commits what's staged. If nothing is staged, the pane tells you instead of guessing. Use **Commit all** if you want everything in.
 - Discarding an untracked file deletes it. It was never in git, so there's no getting it back.
 - Amend with an empty message box keeps the old commit message. Type one to replace it. If the commit is already pushed, the pane warns you first, since pushing it again needs a force push (which the pane doesn't do).
-- If your branch has no upstream yet, Push runs `git push -u origin <branch>` for you.
-- Pull runs `git pull --no-edit`, so a merge never stops to open an editor.
+- If your branch has no upstream yet, Push runs `git push -u <remote> <branch>` for you.
+- Pull runs `git pull --no-edit`, so a merge never stops to open an editor. If you picked a remote other than the one your branch tracks, Push and Pull name that remote and branch directly.
+- New branches start from wherever you are, and the pane switches you onto them.
+- Delete tries the safe `git branch -d` first. If the branch has commits that aren't merged anywhere, git refuses, and the pane offers a **Force delete** (`-D`) behind a confirm. You can't delete the branch you're on.
 
 ## Limitations
 
@@ -93,17 +97,19 @@ It's a single hooks module. `/workspace` opens a pane, and the pane is drawn fro
 
 ```text
 hooks/
-  register.tsx     /workspace command, refresh after each turn, the pane frame and tabs
-  files-view.tsx   file browser, viewer and editor
-  git-view.tsx     branch picker, commit box, change lists and diffs
-  actions.ts       what the Files tab's buttons do: file reads and writes
-  git-actions.ts   what the Source Control buttons do, plus the background fetch
-  repo.ts          shared git plumbing: running git, errors, reading repo status
-  git.ts           parses git output (no Claude Code calls, so it's easy to test)
-  controls.tsx     shared chip buttons, tabs and divider
-  theme.ts         color tokens
-  *.test.ts(x)     tests
-types/index.d.ts   the shape of the session state
+  register.tsx       /workspace command, refresh after each turn, the pane frame and tabs
+  files-view.tsx     file browser, viewer and editor
+  git-view.tsx       branch and remote pickers, the Changes view, diffs
+  branches-view.tsx  the Branches view
+  actions.ts         what the Files tab's buttons do: file reads and writes
+  git-actions.ts     what the Source Control buttons do, plus the background fetch
+  branch-actions.ts  new, rename and delete branch
+  repo.ts            shared git plumbing: running git, errors, reading repo status
+  git.ts             parses git output (no Claude Code calls, so it's easy to test)
+  controls.tsx       shared chip buttons, tabs and divider
+  theme.ts           color tokens
+  *.test.ts(x)       tests
+types/index.d.ts     the shape of the session state
 ```
 
 ## Development

@@ -8,10 +8,14 @@
 - **Amend** folds staged changes into the last commit. An empty message keeps the old one, and amending a commit that's already pushed warns you first.
 - **Commit all** stages everything (untracked files too) and commits in one step.
 - **Fetch** button, plus a quiet background fetch every 3 minutes while the pane is showing.
+- Source Control now has **Changes** and **Branches** views.
+- The Branches view lists local branches with their upstream and ahead/behind counts, and can create, rename and delete them. Delete tries the safe `-d` first and only offers a force delete, behind a confirm, when git refuses.
+- A remote picker shows up when a repo has more than one remote. Push, Pull and Fetch use it, and the choice is remembered per repo.
+- Pull on a branch with no upstream now pulls the same-named branch from the picked remote instead of failing.
 
 ### 🧹 Maintenance
 
-- Split the git code out of `actions.ts` into `repo.ts` (shared plumbing) and `git-actions.ts` (Source Control actions).
+- Split the git code out of `actions.ts` into `repo.ts` (shared plumbing) and `git-actions.ts` (Source Control actions), with branch actions in `branch-actions.ts` and the Branches view in `branches-view.tsx`.
 
 ## 0.2.0 - October 18, 2026
 

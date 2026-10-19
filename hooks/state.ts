@@ -11,4 +11,5 @@ export const EMPTY_REPO: Repo = {
   changes: [],
   branches: [],
   remotes: [],
+  remote: '',
 }
