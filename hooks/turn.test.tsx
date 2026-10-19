@@ -51,7 +51,11 @@ const fakeWorkspace = (on: On, disk: Map<string, string>) => {
     fills.push(e)
     return { isFilled: true, text: e.text, cursor: e.text.length }
   })
+  let taskId = 0
   on('tool.call', async ($, e) => {
+    if (e.tool === 'TodoWrite') return { result: { oldTodos: [], newTodos: e.todos } }
+    if (e.tool === 'TaskCreate') return { result: { task: { id: String((taskId += 1)), subject: e.subject } } }
+    if (e.tool === 'TaskUpdate') return { result: { success: true, taskId: e.taskId, updatedFields: [] } }
     if (e.tool === 'Bash') return { result: { stdout: '', stderr: '', interrupted: false, ...(bash.shift()?.run() as object) } }
     const path = String('file_path' in e ? e.file_path : '').replace('/repo/', '')
     const before = disk.get(path) ?? null
@@ -234,4 +238,49 @@ test('a Bash change with no hunks is listed without a copy', async ($, on) => {
   expect(await ui.find({ key: 'turn:big.bin' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'no copy' })).toBeDefined()
   expect(await ui.find({ key: 'turn-revert:big.bin' })).toBeUndefined()
+})
+
+test('This Turn shows the TodoWrite list above the edited files', async ($, on) => {
+  const disk = new Map([['app.ts', 'one\n']])
+  fakeWorkspace(on, disk)
+  const ui = await mountPane($)
+
+  await $.tool.call({
+    tool: 'TodoWrite',
+    todos: [
+      { content: 'Read the code', status: 'completed', activeForm: 'Reading the code' },
+      { content: 'Write tests', status: 'in_progress', activeForm: 'Writing tests' },
+      { content: 'Update the README', status: 'pending', activeForm: 'Updating the README' },
+    ],
+  })
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/app.ts', old_string: 'one', new_string: 'ONE' })
+  await ui.press({ key: 'tab-turn' })
+
+  expect(await ui.find({ type: 'Text', text: 'Tasks' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '1/3' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Writing tests' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Update the README' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Edited Files' })).toBeDefined()
+  expect(await ui.find({ key: 'turn:app.ts' })).toBeDefined()
+})
+
+test('TaskCreate and TaskUpdate check items off, and a new prompt clears the list', async ($, on) => {
+  fakeWorkspace(on, new Map())
+  on('prompt.submit', async ($, e) => ({ text: e.text }))
+  const ui = await mountPane($)
+
+  await $.tool.call({ tool: 'TaskCreate', subject: 'Add the view', description: '', activeForm: 'Adding the view' })
+  await $.tool.call({ tool: 'TaskCreate', subject: 'Drop this one', description: '' })
+  await $.tool.call({ tool: 'TaskUpdate', taskId: '1', status: 'completed' })
+  await $.tool.call({ tool: 'TaskUpdate', taskId: '2', status: 'deleted' })
+  await ui.press({ key: 'tab-turn' })
+
+  expect(await ui.find({ type: 'Text', text: '1/1' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Add the view' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Drop this one' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'Nothing edited yet.' })).toBeDefined()
+
+  await $.prompt.submit({ text: 'next thing', wait: false, origin: { kind: 'composer' } })
+
+  expect(await ui.find({ type: 'Text', text: 'Tasks' })).toBeUndefined()
 })

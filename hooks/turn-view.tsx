@@ -1,9 +1,9 @@
-// The This Turn tab: every file Claude edited since your last prompt, how
-// much changed, its diff against the before-edit copy, and a way to undo it.
+// The This Turn tab: Claude's task list since your last prompt, then every file
+// it edited, how much changed, its diff against the before-edit copy, and a way to undo it.
 import { atom, read } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Snapshot, TurnDiff } from '../types'
+import type { Snapshot, Task, TurnDiff } from '../types'
 import { drawStatus } from './confirm-view'
 import { badge, card, chip } from './controls'
 import { fileIcon } from './icons'
@@ -13,6 +13,7 @@ import type { UI } from './ui'
 
 const activityState = atom({ plugin: 'workspace', key: 'activity' } as const, [])
 const snapshotsState = atom({ plugin: 'workspace', key: 'snapshots' } as const, [])
+const tasksState = atom({ plugin: 'workspace', key: 'tasks' } as const, [])
 const turnDiffState = atom({ plugin: 'workspace', key: 'turnDiff' } as const, null)
 
 type $ = EngineInterface
@@ -30,6 +31,38 @@ function counts(ui: UI, key: string, added: number, removed: number) {
     <Text key={`${key}:added`} color={added > 0 ? C.added : C.faint}>{`+${added}`}</Text>,
     <Text key={`${key}:removed`} color={removed > 0 ? C.deleted : C.faint}>{`−${removed}`}</Text>,
   ]
+}
+
+// A section's title and count on the left, an optional summary on the right.
+function heading(ui: UI, key: string, title: string, count: string, right?: JSX.Element[]) {
+  const { Box, Text } = ui
+
+  return (
+    <Box key={`turn-head:${key}`} justifyContent="space-between" gap={1}>
+      <Box gap={1}>
+        <Text color={C.text} bold>{title}</Text>
+        <Text color={C.faint}>{count}</Text>
+      </Box>
+      {right && <Box gap={1}>{right}</Box>}
+    </Box>
+  )
+}
+
+const TASK_MARK = { completed: '✓', in_progress: '●', pending: '○' } as const
+
+function drawTask(ui: UI, task: Task) {
+  const { Box, Text } = ui
+  const isActive = task.status === 'in_progress'
+  const color = task.status === 'completed' ? C.added : isActive ? C.busy : C.faint
+
+  return (
+    <Box key={`task:${task.id}`} gap={1} height={1} overflow="hidden">
+      <Text color={color}>{TASK_MARK[task.status]}</Text>
+      <Text color={task.status === 'completed' ? C.muted : C.text} bold={isActive} wrap="truncate-end">
+        {isActive ? task.active : task.text}
+      </Text>
+    </Box>
+  )
 }
 
 function drawTurnDiff($: $, ui: UI, diff: TurnDiff, snapshot: Snapshot | undefined, status: JSX.Element | null) {
@@ -67,7 +100,8 @@ export async function drawTurn($: $, ui: UI) {
   if (diff !== null) return drawTurnDiff($, ui, diff, snapshots.find(one => one.path === diff.path), status)
 
   const edits = [...(await read($, activityState))].filter(one => one.kind === 'edit').reverse()
-  if (edits.length === 0) {
+  const tasks = await read($, tasksState)
+  if (edits.length === 0 && tasks.length === 0) {
     return (
       <Box flexDirection="column" gap={1}>
         {status}
@@ -79,14 +113,16 @@ export async function drawTurn($: $, ui: UI) {
   const added = snapshots.reduce((sum, one) => sum + one.added, 0)
   const removed = snapshots.reduce((sum, one) => sum + one.removed, 0)
 
+  const finished = tasks.filter(one => one.status === 'completed').length
+
   return (
     <Box flexDirection="column" gap={1}>
-      <Box justifyContent="space-between" gap={1}>
-        {badge(ui, 'turn-files', edits.length === 1 ? '1 file' : `${edits.length} files`, C.muted)}
-        <Box gap={1}>{counts(ui, 'turn-total', added, removed)}</Box>
-      </Box>
       {status}
-      {card(ui, 'turn-list', edits.map(edit => {
+      {tasks.length > 0 && heading(ui, 'tasks', 'Tasks', `${finished}/${tasks.length}`)}
+      {tasks.length > 0 && card(ui, 'turn-tasks', tasks.map(task => drawTask(ui, task)))}
+      {heading(ui, 'files', 'Edited Files', String(edits.length), edits.length > 0 ? counts(ui, 'turn-total', added, removed) : undefined)}
+      {edits.length === 0 && <Text color={C.faint}>Nothing edited yet.</Text>}
+      {edits.length > 0 && card(ui, 'turn-list', edits.map(edit => {
         const snapshot = snapshots.find(one => one.path === edit.path)
         const cut = edit.path.lastIndexOf('/')
         const name = edit.path.slice(cut + 1)

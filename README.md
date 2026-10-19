@@ -10,7 +10,7 @@ What's in the pane:
 
 - **Files**: browse, read and edit files, with git status and marks for what Claude touched
 - **Source Control**: VS Code style git, from staging single hunks to merges, rebases and conflicts
-- **This Turn**: every file Claude edited since your last prompt, with diffs, Review and revert
+- **This Turn**: Claude's task list and every file it edited since your last prompt, with diffs, Review and revert
 - **GitHub**: open pull requests and issues, with CI and review status
 - **Stats strip**: 5 hour and 7 day usage, context, model and cost along the top
 
@@ -50,7 +50,8 @@ What's in the pane:
 
 **This Turn tab**
 
-- Every file Claude edited since your last prompt, with how many lines it added and removed. Files Claude created get a **new** badge
+- A **Tasks** section at the top shows Claude's task list for the turn, with a done count like **2/4**. Items get `✓` when they finish, and the one in progress shows what Claude is doing right now, like "Writing tests". It only shows up when Claude actually makes a list, which depends on your setup having the TodoWrite or Task tools turned on
+- Under it, **Edited Files** lists every file Claude edited since your last prompt, with how many lines it added and removed. Files Claude created get a **new** badge
 - That includes files changed by Claude's Bash commands, like a `sed -i` or a script that writes files, not just its Edit and Write tools
 - Click a file to see its diff against how it looked before Claude's first edit this turn. That's a different view from Source Control's diff, which compares against your last commit
 - `↺` (or **↺ Revert** in the diff) puts the file back the way it was before this turn. For a file Claude created, it deletes the file. Both ask first
@@ -222,6 +223,7 @@ hooks/
   remotes-view.tsx    the Remotes section at the bottom of Branches
   actions.ts          what the Files tab's buttons do: file reads and writes, and @ mentions
   activity.ts         watches Claude's file tools for the read and edit marks
+  tasks.ts            watches Claude's task list tools for the Tasks section
   turn-actions.ts     before-edit copies, This Turn diffs and reverts, Review/Explain, and ✦ Message
   tree.ts             maps git and tool paths onto the file list (no Claude Code calls)
   git-actions.ts      what the Source Control buttons do, plus the background fetch

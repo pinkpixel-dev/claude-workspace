@@ -2,6 +2,11 @@
 
 ## 0.10.0 - October 19, 2026
 
+### ✎ This Turn
+
+- This Turn has a **Tasks** section now. It follows Claude's task list (TodoWrite, or TaskCreate and TaskUpdate) and checks items off as they finish, with a done count like **2/4**.
+- The file list moved under its own **Edited Files** heading, with the file count and total lines added and removed beside it.
+
 ### 🌿 Branches
 
 - **+ New branch** has a **from** picker, so a branch can start from any local branch, remote branch or tag instead of only where you are.

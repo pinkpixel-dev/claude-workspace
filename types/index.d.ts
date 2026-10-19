@@ -22,6 +22,11 @@ export type Snapshot = { path: string; before: string | null; isNew: boolean; ad
 // The This Turn tab's open diff: a file's snapshot against what's on disk now.
 export type TurnDiff = { path: string; text: string; added: number; removed: number }
 
+export type TaskStatus = 'pending' | 'in_progress' | 'completed'
+
+// One item on Claude's task list this turn; `active` is how it reads while in progress ("Running tests").
+export type Task = { id: string; text: string; active: string; status: TaskStatus }
+
 // One usage window, as `session.measure` reports it.
 export type Limit = { percent: number; resetsAt?: string }
 
@@ -222,6 +227,8 @@ declare module 'claude-code' {
       // Before-edit copies of the files Claude edited since your last prompt.
       snapshots: Snapshot[]
       turnDiff: TurnDiff | null
+      // Claude's task list since your last prompt, from TodoWrite or TaskCreate and TaskUpdate.
+      tasks: Task[]
       stats: Stats
       // The stats strip at the top of the pane; the choice is kept in $.store.
       showStats: boolean

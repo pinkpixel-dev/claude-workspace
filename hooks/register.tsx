@@ -15,6 +15,7 @@ import { isStaged, isUnstaged } from './git'
 import { C } from './theme'
 import { PANE, EMPTY_REPO } from './state'
 import { drawStats, loadStats, measure, setModel, toggleStats } from './stats-view'
+import { clearTasks, TASK_TOOLS, trackTasks } from './tasks'
 import { clearTurn } from './turn-actions'
 import { drawTurn } from './turn-view'
 
@@ -48,13 +49,14 @@ export const register: Register = on => {
   })
 
   // Marks the files Claude reads and edits in the Files tab.
-  on('tool.call', ($, e, next) => trackTool($, e, next))
+  on('tool.call', ($, e, next) => (TASK_TOOLS.has(e.tool) ? trackTasks($, e, next) : trackTool($, e, next)))
 
   // A new prompt starts a fresh set of marks; slash commands keep them.
   on('prompt.submit', async ($, e, next) => {
     if (e.command === undefined && e.isMeta !== true) {
       await clearActivity($).catch(() => undefined)
       await clearTurn($).catch(() => undefined)
+      await clearTasks($).catch(() => undefined)
     }
 
     return next(e)
