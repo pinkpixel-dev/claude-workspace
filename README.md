@@ -153,7 +153,7 @@ hooks/
   merge-actions.ts    merge, rebase, Continue/Abort and resolving conflicts
   repo.ts             shared git plumbing: running git, errors, reading repo status
   git.ts              parses git output (no Claude Code calls, so it's easy to test)
-  controls.tsx        shared chip buttons, tabs and divider
+  controls.tsx        shared chip buttons, tabs, section headers, frames and divider
   theme.ts            color tokens
   *.test.ts(x)        tests
 types/index.d.ts      the shape of the session state
