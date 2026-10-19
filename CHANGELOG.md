@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 - October 18, 2026
+
+### ✨ GitHub
+
+- New **GitHub** tab listing the repo's open pull requests and issues through the GitHub CLI, with **Pull requests** and **Issues** views and a refresh button.
+- Click an item to read its description and comments in the pane, plus state, author, branches, review status, a checks summary and labels.
+- `@` on each item, and in its detail view, puts a short reference with the URL into the prompt box at the cursor.
+- The lists reload after each Claude turn while the tab is showing.
+
 ## 0.4.0 - October 18, 2026
 
 ### ✨ Files

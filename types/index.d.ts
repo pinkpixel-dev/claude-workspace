@@ -1,4 +1,4 @@
-export type Tab = 'files' | 'git'
+export type Tab = 'files' | 'git' | 'github'
 
 export type GitView = 'changes' | 'history' | 'branches' | 'stash'
 
@@ -92,6 +92,36 @@ export type ConfirmAction =
 // branch, commit or stash the step is for.
 export type Confirm = { action: ConfirmAction; question: string; yes: string; path?: string }
 
+export type GithubView = 'pulls' | 'issues'
+
+// One open pull request or issue, as the GitHub tab lists it.
+export type GhItem = {
+  kind: 'pr' | 'issue'
+  number: number
+  title: string
+  author: string
+  // How long since it was last updated, short form: 5m, 2h, 3d.
+  age: string
+  url: string
+  isDraft: boolean
+  labels: string[]
+}
+
+export type GhComment = { author: string; age: string; body: string }
+
+// A pull request or issue opened from the list; `meta` is its one-line facts.
+export type GhDetail = { item: GhItem; meta: string[]; body: string; comments: GhComment[] }
+
+export type Github = {
+  isLoading: boolean
+  // gh's complaint from the last call, '' when it went fine.
+  error: string
+  // owner/name of the repo gh resolved, '' until it has.
+  repo: string
+  pulls: GhItem[]
+  issues: GhItem[]
+}
+
 declare module 'claude-code' {
   interface PluginState {
     workspace: {
@@ -115,6 +145,9 @@ declare module 'claude-code' {
       // The session's folder, absolute; '' until it's read.
       cwd: string
       activity: Touch[]
+      github: Github
+      githubView: GithubView
+      ghDetail: GhDetail | null
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { Repo } from '../types'
+import type { Github, Repo } from '../types'
 
 export const PANE = 'workspace'
 
@@ -20,3 +20,5 @@ export const EMPTY_REPO: Repo = {
   stashes: [],
   operation: null,
 }
+
+export const EMPTY_GITHUB: Github = { isLoading: false, error: '', repo: '', pulls: [], issues: [] }

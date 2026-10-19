@@ -1,6 +1,6 @@
 # Workspace
 
-Workspace is a Claude Code mod that adds a pane with a file browser and a VS Code style source control panel. You can browse your project, read and edit files, and do most of your everyday git right there: stage whole files or single hunks, commit, push and pull, look back through history, manage branches and stashes, and merge or rebase with a real conflict view, all without leaving Claude Code.
+Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code style source control panel, and a GitHub tab for pull requests and issues. You can browse your project, read and edit files, and do most of your everyday git right there: stage whole files or single hunks, commit, push and pull, look back through history, manage branches and stashes, and merge or rebase with a real conflict view, all without leaving Claude Code.
 
 I made it because I kept jumping out to my editor just to check what changed or to make a quick commit. Now that stuff lives right next to the conversation.
 
@@ -39,6 +39,14 @@ I made it because I kept jumping out to my editor just to check what changed or 
 - A remote picker when the repo has more than one remote. Push, Pull and Fetch use it, and the pane remembers your pick for that repo
 - A confirm step before committing or pushing straight to `main` or `master`
 - An **Initialize Repository** button when the folder isn't a git repo yet (it runs `git init -b main`)
+
+**GitHub tab**
+
+- Open pull requests and issues for the repo, up to 50 of each, with who last touched them and how long ago. Drafts get a dimmer dot
+- Click one to read it right in the pane: its state, author, branches, review status, a quick count of passing and failing checks, labels, the description and the comments
+- `@` on any row (and in the detail header) drops a short reference like `PR #42 "Fix the thing" (https://github.com/...)` into your prompt box at the cursor. Claude can then pull the full thread or diff with `gh` itself, so your prompt doesn't fill up with a whole conversation
+- **Open** in the detail view takes you to it on GitHub, and `↻` reloads the lists
+- The lists refresh after each Claude turn while the tab is showing, so a PR Claude just opened shows up on its own
 
 The pane draws its own dark theme, so it looks the same no matter which Claude Code theme you use.
 
@@ -103,10 +111,12 @@ A few things worth knowing:
 - **Ours** and **Theirs** keep one side's whole file. Heads up: during a rebase git flips these, so **Ours** is the branch you're rebasing onto and **Theirs** is your own commit.
 - **Continue** finishes the merge (or moves the rebase to its next commit) using git's own commit message, since there's no editor to open. It won't run while conflicts are left.
 - **Abort** asks first, then puts everything back to how it was before the merge or rebase started.
+- The GitHub tab is read-only for now. It doesn't comment, review, merge or close anything. If you want one of those, `@` the item and ask Claude.
 - Delete tries the safe `git branch -d` first. If the branch has commits that aren't merged anywhere, git refuses, and the pane offers a **Force delete** (`-D`) behind a confirm. You can't delete the branch you're on.
 
 ## Limitations
 
+- **The GitHub tab needs the GitHub CLI.** It runs `gh` in your repo, so you need [gh](https://cli.github.com) installed and logged in (`gh auth login`), and the repo's remote has to be on GitHub. If any of that is missing, the tab shows gh's error instead of a list.
 - **Git hooks don't run.** Claude Code runs git for mods with repo hooks turned off, so things like husky or pre-commit checks get skipped for commits made from the pane.
 - **Push and pull won't ask for a password.** They need an SSH key or a git credential helper already set up. Without one they fail fast and show git's error instead of hanging.
 - **Rebase is plain only.** There's no interactive rebase (squash, reorder, edit), since that needs an editor the pane can't drive.

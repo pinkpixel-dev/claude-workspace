@@ -7,6 +7,8 @@ import { autoFetch, FETCH_EVERY_MS } from './git-actions'
 import { refreshRepo } from './repo'
 import { drawFiles } from './files-view'
 import { drawGit } from './git-view'
+import { refreshGithub } from './github-actions'
+import { drawGithub } from './github-view'
 import { divider, tab as navTab } from './controls'
 import { isStaged, isUnstaged } from './git'
 import { C } from './theme'
@@ -51,6 +53,8 @@ export const register: Register = on => {
     const done = await next(e)
     void (async () => {
       await refreshAll($)
+      // Claude may have opened a pull request or issue too.
+      if ((await read($, tabState)) === 'github') await refreshGithub($)
       const file = await read($, openFileState)
       if (file !== null && !(await read($, isEditingState)) && !file.readOnlyReason) {
         await openPath($, file.path)
@@ -75,7 +79,9 @@ export const register: Register = on => {
 
     const body = tab === 'files'
       ? await drawFiles($, ui, e.props.scroll.bodyRows)
-      : await drawGit($, ui)
+      : tab === 'git'
+        ? await drawGit($, ui)
+        : await drawGithub($, ui)
 
     return (
       <Box flexDirection="column" width={width} minHeight={e.props.scroll.bodyRows} backgroundColor={C.bg} paddingX={1}>
@@ -84,6 +90,10 @@ export const register: Register = on => {
           {navTab(ui, 'tab-git', count > 0 ? `Source Control ${count}` : 'Source Control', tab === 'git', async () => {
             await update($, tabState, () => 'git' as const)
             await refreshRepo($)
+          })}
+          {navTab(ui, 'tab-github', 'GitHub', tab === 'github', async () => {
+            await update($, tabState, () => 'github' as const)
+            await refreshGithub($)
           })}
         </Box>
         <Box marginBottom={1}>{divider(ui, width - 2)}</Box>
