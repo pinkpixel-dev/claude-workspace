@@ -2,7 +2,7 @@ import { atom, read } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import type { GhDetail, GhItem } from '../types'
-import { chip, tab } from './controls'
+import { chip, segments } from './controls'
 import { detailMarkdown } from './github'
 import { closeItem, mentionItem, refreshGithub, showGithubView, showItem } from './github-actions'
 import { EMPTY_GITHUB } from './state'
@@ -31,7 +31,7 @@ function drawItemRow($: $, ui: UI, item: GhItem) {
       </Box>
       <Box gap={1} flexShrink={0}>
         <Text color={C.faint}>{`${item.isDraft ? 'draft · ' : ''}${item.author} · ${item.age}`}</Text>
-        {chip(ui, { key: `gh-mention:${keyOf(item)}`, label: '@', kind: 'quiet', onPress: () => mentionItem($, item) })}
+        {chip(ui, { key: `gh-mention:${keyOf(item)}`, label: '@', kind: 'row', onPress: () => mentionItem($, item) })}
       </Box>
     </Box>
   )
@@ -83,10 +83,10 @@ export async function drawGithub($: $, ui: UI) {
   return (
     <Box flexDirection="column" gap={1}>
       <Box justifyContent="space-between" gap={1}>
-        <Box gap={1}>
-          {tab(ui, 'gh-view-pulls', `Pull requests ${github.pulls.length}`, view === 'pulls', () => showGithubView($, 'pulls'))}
-          {tab(ui, 'gh-view-issues', `Issues ${github.issues.length}`, view === 'issues', () => showGithubView($, 'issues'))}
-        </Box>
+        {segments(ui, [
+          { key: 'gh-view-pulls', label: `Pull requests ${github.pulls.length}`, isActive: view === 'pulls', onPress: () => showGithubView($, 'pulls') },
+          { key: 'gh-view-issues', label: `Issues ${github.issues.length}`, isActive: view === 'issues', onPress: () => showGithubView($, 'issues') },
+        ])}
         <Box gap={1}>
           {github.repo !== '' && <Text color={C.faint}>{github.repo}</Text>}
           {chip(ui, { key: 'gh-refresh', label: '↻', kind: 'quiet', onPress: () => refreshGithub($) })}

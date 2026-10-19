@@ -85,7 +85,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column" width={width} minHeight={e.props.scroll.bodyRows} backgroundColor={C.bg} paddingX={1}>
-        <Box gap={1} paddingTop={1}>
+        <Box gap={3} paddingTop={1} paddingLeft={1}>
           {navTab(ui, 'tab-files', 'Files', tab === 'files', () => update($, tabState, () => 'files' as const))}
           {navTab(ui, 'tab-git', count > 0 ? `Source Control ${count}` : 'Source Control', tab === 'git', async () => {
             await update($, tabState, () => 'git' as const)

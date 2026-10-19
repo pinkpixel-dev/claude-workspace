@@ -64,9 +64,9 @@ function drawConflictRow($: $, ui: UI, change: Change) {
         </Button>
       </Box>
       <Box gap={1}>
-        {chip(ui, { key: `conflict-ours:${change.path}`, label: 'Ours', kind: 'quiet', onPress: () => takeSide($, change, 'ours') })}
-        {chip(ui, { key: `conflict-theirs:${change.path}`, label: 'Theirs', kind: 'quiet', onPress: () => takeSide($, change, 'theirs') })}
-        {chip(ui, { key: `conflict-resolved:${change.path}`, label: 'Resolved', kind: 'quiet', onPress: () => markResolved($, change) })}
+        {chip(ui, { key: `conflict-ours:${change.path}`, label: 'Ours', kind: 'row', onPress: () => takeSide($, change, 'ours') })}
+        {chip(ui, { key: `conflict-theirs:${change.path}`, label: 'Theirs', kind: 'row', onPress: () => takeSide($, change, 'theirs') })}
+        {chip(ui, { key: `conflict-resolved:${change.path}`, label: 'Resolved', kind: 'row', onPress: () => markResolved($, change) })}
       </Box>
     </Box>
   )

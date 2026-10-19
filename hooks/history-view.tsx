@@ -15,21 +15,26 @@ type $ = EngineInterface
 function drawCommitRow($: $, ui: UI, commit: Commit) {
   const { Box, Button, Text } = ui
 
+  // One row per commit: the frame clips a long subject instead of letting it wrap.
   return (
     <Box key={`commit:${commit.sha}`} justifyContent="space-between" gap={1} hover={{ backgroundColor: C.hover }}>
-      <Box flexShrink={1}>
+      <Box flexShrink={1} height={1} overflow="hidden">
         <Button key={`commit-show:${commit.sha}`} plain onPress={() => showCommit($, commit)}>
-          <Text color={C.faint}>{`${commit.age.padEnd(3)} `}</Text>
+          <Text color={C.faint}>{`${commit.age.padEnd(4)}`}</Text>
           <Text color={C.text} wrap="truncate-end">{commit.subject}</Text>
-          <Text color={C.faint}>{`  ${commit.short}`}</Text>
         </Button>
       </Box>
-      {!commit.isMerge && chip(ui, {
-        key: `commit-revert:${commit.sha}`,
-        label: 'Revert',
-        kind: 'quiet',
-        onPress: () => revert($, commit),
-      })}
+      <Box gap={1} flexShrink={0}>
+        <Text color={C.faint}>{commit.short}</Text>
+        {commit.isMerge
+          ? <Text color={C.faint}>{' merge  '}</Text>
+          : chip(ui, {
+            key: `commit-revert:${commit.sha}`,
+            label: 'Revert',
+            kind: 'row',
+            onPress: () => revert($, commit),
+          })}
+      </Box>
     </Box>
   )
 }

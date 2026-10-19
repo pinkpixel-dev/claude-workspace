@@ -130,7 +130,7 @@ export async function drawFiles($: EngineInterface, ui: UI, bodyRows: number) {
             <Box gap={1} flexShrink={0}>
               {!isDir && <Text color={C.faint}>{formatSize(entry.size)}</Text>}
               {letter !== undefined && <Text color={toneOf(letter)} bold>{isDir ? '●' : letter}</Text>}
-              {chip(ui, { key: `mention:${entry.name}`, label: '@', onPress: () => mention($, path), kind: 'quiet' })}
+              {chip(ui, { key: `mention:${entry.name}`, label: '@', onPress: () => mention($, path), kind: 'row' })}
             </Box>
           </Box>
         )

@@ -148,6 +148,8 @@ declare module 'claude-code' {
       github: Github
       githubView: GithubView
       ghDetail: GhDetail | null
+      // The Source Control sections folded shut, by key.
+      folded: string[]
     }
   }
 }

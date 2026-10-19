@@ -29,7 +29,7 @@ function drawBranchRow($: $, ui: UI, branch: Branch, isCurrent: boolean) {
   return (
     <Box key={`branch:${branch.name}`} justifyContent="space-between" gap={1} hover={{ backgroundColor: C.hover }}>
       <Box gap={1} flexShrink={1}>
-        <Text color={isCurrent ? C.added : C.faint}>{isCurrent ? '●' : ' '}</Text>
+        <Text color={isCurrent ? C.accent : C.faint}>{isCurrent ? '●' : ' '}</Text>
         <Text color={C.text} bold={isCurrent} wrap="truncate-end">{branch.name}</Text>
         <Text color={C.faint} wrap="truncate-end">{branch.upstream ?? 'local'}</Text>
         {branch.isGone && <Text color={C.deleted}>gone</Text>}
@@ -39,19 +39,19 @@ function drawBranchRow($: $, ui: UI, branch: Branch, isCurrent: boolean) {
         {!isCurrent && chip(ui, {
           key: `branch-switch:${branch.name}`,
           label: 'Switch',
-          kind: 'quiet',
+          kind: 'row',
           onPress: () => switchBranch($, branch.name),
         })}
         {chip(ui, {
           key: `branch-rename:${branch.name}`,
           label: 'Rename',
-          kind: 'quiet',
+          kind: 'row',
           onPress: () => startRename($, branch.name),
         })}
         {!isCurrent && chip(ui, {
           key: `branch-delete:${branch.name}`,
           label: 'Delete',
-          kind: 'quiet',
+          kind: 'row',
           onPress: () => deleteBranch($, branch.name),
         })}
       </Box>
@@ -104,7 +104,7 @@ export async function drawBranches($: $, ui: UI, repo: Repo, status: JSX.Element
           {remote.map(ref => (
             <Box key={`remote-branch:${ref}`} justifyContent="space-between" gap={1} hover={{ backgroundColor: C.hover }}>
               <Text color={C.muted} wrap="truncate-end">{`  ${ref}`}</Text>
-              {chip(ui, { key: `branch-checkout:${ref}`, label: 'Check out', kind: 'quiet', onPress: () => checkoutRemote($, ref) })}
+              {chip(ui, { key: `branch-checkout:${ref}`, label: 'Check out', kind: 'row', onPress: () => checkoutRemote($, ref) })}
             </Box>
           ))}
         </Box>

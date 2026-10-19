@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0 - October 18, 2026
+
+### 🎨 Look and feel
+
+- The pane has an accent color now (a muted rose). It shows up on the active tab, the current branch dot, the **Commit** button and the commit box once you start typing.
+- Top tabs are plain labels with the active one underlined, and the sub-views (Changes, History, Branches, Stash, plus Pull requests and Issues) sit in one row split by dots.
+- The branch picker, ahead/behind counts and Fetch, Pull and Push sit together in a rounded frame, and the commit message box gets a frame too.
+- Per-row buttons like `@`, `+`, `−`, `↺`, **Revert**, **Switch**, **Rename**, **Delete**, **Apply**, **Pop**, **Drop** and the conflict buttons are faint until you hover or focus them, so long lists are easier to read.
+
+### ✨ Source Control
+
+- **Changes** and **Staged Changes** fold shut with the `▾` next to their title.
+
+### 🐛 Fixes
+
+- History rows stay on one line. A long commit subject used to wrap across several rows, and the short hash now sits in its own column next to **Revert**.
+
 ## 0.5.0 - October 18, 2026
 
 ### ✨ GitHub

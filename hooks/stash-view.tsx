@@ -19,9 +19,9 @@ function drawStashRow($: $, ui: UI, stash: Stash) {
         <Text color={C.faint}>{stash.ref}</Text>
       </Box>
       <Box gap={1}>
-        {chip(ui, { key: `stash-apply:${stash.ref}`, label: 'Apply', kind: 'quiet', onPress: () => applyStash($, stash, false) })}
-        {chip(ui, { key: `stash-pop:${stash.ref}`, label: 'Pop', kind: 'quiet', onPress: () => applyStash($, stash, true) })}
-        {chip(ui, { key: `stash-drop:${stash.ref}`, label: 'Drop', kind: 'quiet', onPress: () => dropStash($, stash) })}
+        {chip(ui, { key: `stash-apply:${stash.ref}`, label: 'Apply', kind: 'row', onPress: () => applyStash($, stash, false) })}
+        {chip(ui, { key: `stash-pop:${stash.ref}`, label: 'Pop', kind: 'row', onPress: () => applyStash($, stash, true) })}
+        {chip(ui, { key: `stash-drop:${stash.ref}`, label: 'Drop', kind: 'row', onPress: () => dropStash($, stash) })}
       </Box>
     </Box>
   )

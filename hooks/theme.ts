@@ -7,6 +7,9 @@ export const C = {
   text: '#ececf1',
   muted: '#9b9da8',
   faint: '#6c6e79',
+  // The one accent: the active tab, the current branch, the main action.
+  accent: '#e58fa2',
+  accentHover: '#f0b3c0',
   added: '#62d394',
   modified: '#e6b45a',
   deleted: '#f2727c',

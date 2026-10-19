@@ -22,7 +22,7 @@ Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code s
 
 **Source Control tab**
 
-- Staged and unstaged changes, colored the way VS Code does it (added, modified, deleted, renamed)
+- Staged and unstaged changes, colored the way VS Code does it (added, modified, deleted, renamed). Click the `▾` next to a section to fold it shut when the list gets long
 - Click a file to see its diff, and use `+` and `−` to stage or unstage it. Inside the diff, each hunk gets its own **Stage hunk** or **Unstage hunk** button
 - **Stage all** for everything at once
 - `↺` on a file throws away its changes, and **Discard all** does the whole list. Both ask first

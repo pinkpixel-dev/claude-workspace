@@ -81,6 +81,18 @@ test('staging a file runs git add on that path', async ($, on) => {
   expect(ran).toContainEqual(['add', '-A', '--', 'README.md'])
 })
 
+test('folding a section hides its rows and unfolding brings them back', async ($, on) => {
+  fakeRepo(on)
+  const ui = await openSourceControl($)
+
+  await ui.press({ key: 'fold:work' })
+  expect(await ui.find({ key: 'stage:README.md' })).toBeUndefined()
+  expect(await ui.find({ key: 'unstage:src/app.ts' })).toBeDefined()
+
+  await ui.press({ key: 'fold:work' })
+  expect(await ui.find({ key: 'stage:README.md' })).toBeDefined()
+})
+
 test('commit without a message explains what is missing', async ($, on) => {
   const ran = fakeRepo(on)
   const ui = await openSourceControl($)
