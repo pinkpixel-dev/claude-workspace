@@ -4,6 +4,10 @@ Workspace is a Claude Code mod that adds a pane with a file browser and a VS Cod
 
 I made it because I kept jumping out to my editor just to check what changed or to make a quick commit. Now that stuff lives right next to the conversation.
 
+| Files | Viewing a file | Source Control |
+| :---: | :---: | :---: |
+| <img src="screenshots/file-list.png" width="260" alt="The Files tab listing a project's folders and files with their sizes"> | <img src="screenshots/file-view.png" width="260" alt="A Rust file open in the viewer with syntax highlighting and line numbers"> | <img src="screenshots/git.png" width="260" alt="The Source Control tab with the branch picker, Fetch, Pull and Push, and the Changes, History, Branches and Stash views"> |
+
 ## Features
 
 **Files tab**
