@@ -9,7 +9,7 @@
     {
       "name": "workspace",
       "source": "./",
-      "description": "A file browser, VS Code style source control and GitHub pane. See git status and what Claude is reading or editing, @ files, pull requests and issues into your prompt, and stage, commit, branch, stash, merge and resolve conflicts without leaving Claude Code"
+      "description": "A file browser, VS Code style source control and GitHub pane. See git status and what Claude is reading or editing, review or undo what Claude changed this turn, check your usage, @ files, pull requests and issues into your prompt, and stage, commit, branch, stash, merge and resolve conflicts without leaving Claude Code"
     }
   ]
 }
