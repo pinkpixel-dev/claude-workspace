@@ -9,7 +9,7 @@
     {
       "name": "workspace",
       "source": "./",
-      "description": "A pane with a file browser and editor plus VS Code style source control: diffs, stage, commit, push, pull and branch switching"
+      "description": "A pane with a file browser and editor plus VS Code style source control: stage files or single hunks, commit and amend, history and revert, branches, stash, merge, rebase and conflict resolution"
     }
   ]
 }

@@ -50,7 +50,12 @@ export async function revert($: $, commit: Commit) {
     const { root } = await read($, repoState)
     const ran = await git($, ['revert', '--no-edit', commit.sha], { cwd: root })
 
-    if (ran.exitCode !== 0) await failedStep($, 'Revert', ran)
+    if (ran.exitCode !== 0) {
+      // A stop on conflicts rewrote files, so pick that up before saying so.
+      await reloadFile($)
+      await refreshDir($)
+      await failedStep($, 'Revert', ran)
+    }
 
     $.ui.toast(`Reverted ${commit.short}`)
     await reloadFile($)

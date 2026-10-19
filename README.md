@@ -1,6 +1,6 @@
 # Workspace
 
-Workspace is a Claude Code mod that adds a pane with a file browser and a VS Code style source control panel. You can browse your project, read and edit files, look at diffs, stage changes, write a commit message, and commit, push, pull or switch branches without leaving Claude Code.
+Workspace is a Claude Code mod that adds a pane with a file browser and a VS Code style source control panel. You can browse your project, read and edit files, and do most of your everyday git right there: stage whole files or single hunks, commit, push and pull, look back through history, manage branches and stashes, and merge or rebase with a real conflict view, all without leaving Claude Code.
 
 I made it because I kept jumping out to my editor just to check what changed or to make a quick commit. Now that stuff lives right next to the conversation.
 

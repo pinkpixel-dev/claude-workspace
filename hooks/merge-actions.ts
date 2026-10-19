@@ -32,7 +32,12 @@ export async function merge($: $, source: string) {
 
   await run($, 'Merging', async () => {
     const ran = await git($, ['merge', '--no-edit', source], { ...NO_EDITOR, cwd: current.root })
-    if (ran.exitCode !== 0) await failedStep($, 'Merge', ran)
+    if (ran.exitCode !== 0) {
+      // A stop on conflicts rewrote files, so pick that up before saying so.
+      await reloadFile($)
+      await refreshDir($)
+      await failedStep($, 'Merge', ran)
+    }
 
     $.ui.toast(ran.stdout.split('\n')[0] || `Merged ${source}`)
     await reloadFile($)
@@ -57,7 +62,11 @@ export async function rebase($: $, onto: string) {
 
   await run($, 'Rebasing', async () => {
     const ran = await git($, ['rebase', onto], { ...NO_EDITOR, cwd: current.root })
-    if (ran.exitCode !== 0) await failedStep($, 'Rebase', ran)
+    if (ran.exitCode !== 0) {
+      await reloadFile($)
+      await refreshDir($)
+      await failedStep($, 'Rebase', ran)
+    }
 
     $.ui.toast(`Rebased ${current.branch} onto ${onto}`)
     await reloadFile($)
@@ -75,7 +84,11 @@ export async function continueOperation($: $) {
     // A rebase can stop again on the next commit; that lands back in Merge Changes.
     const ran = await git($, operationArgs(operation, 'continue'), { ...NO_EDITOR, cwd: current.root })
     const label = `${operation.charAt(0).toUpperCase()}${operation.slice(1)}`
-    if (ran.exitCode !== 0) await failedStep($, label, ran)
+    if (ran.exitCode !== 0) {
+      await reloadFile($)
+      await refreshDir($)
+      await failedStep($, label, ran)
+    }
 
     $.ui.toast(`Finished the ${operation}`)
     await reloadFile($)
