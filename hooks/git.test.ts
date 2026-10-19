@@ -2,10 +2,13 @@ import { describe, expect, test } from 'claude-code/testing'
 
 import {
   discardArgs,
+  hasConflictMarkers,
+  isConflicted,
   isPushed,
   isStaged,
   isUnstaged,
   limitDiff,
+  operationArgs,
   parseBranches,
   parseLog,
   parseRemoteBranches,
@@ -17,6 +20,7 @@ import {
   pushArgs,
   remoteOnly,
   shortAge,
+  splitHunks,
 } from './git'
 
 describe('parseStatus', () => {
@@ -163,4 +167,35 @@ test('remote branches drop HEAD pointers, and remoteOnly hides ones you have', a
     { name: 'dev', upstream: undefined, ahead: 0, behind: 0, isGone: false },
   ]
   expect(remoteOnly({ branches, remoteBranches, remotes: ['origin', 'fork'] })).toEqual(['origin/feature'])
+})
+
+test('isConflicted knows every unmerged status pair', async () => {
+  for (const pair of ['UU', 'AA', 'DD', 'AU', 'UA', 'DU', 'UD']) {
+    expect(isConflicted({ path: 'x', index: pair[0] ?? '', work: pair[1] ?? '' })).toBe(true)
+  }
+  expect(isConflicted({ path: 'x', index: 'M', work: 'M' })).toBe(false)
+})
+
+test('operationArgs finishes a merge with a commit and the rest with --continue', async () => {
+  expect(operationArgs('merge', 'continue')).toEqual(['commit', '--no-edit'])
+  expect(operationArgs('merge', 'abort')).toEqual(['merge', '--abort'])
+  expect(operationArgs('rebase', 'continue')).toEqual(['rebase', '--continue'])
+  expect(operationArgs('cherry-pick', 'abort')).toEqual(['cherry-pick', '--abort'])
+})
+
+test('hasConflictMarkers spots git markers but not look-alikes', async () => {
+  expect(hasConflictMarkers('a\n<<<<<<< HEAD\nb\n=======\nc\n>>>>>>> dev\n')).toBe(true)
+  expect(hasConflictMarkers('a\n// <<<<<<< not at line start\n')).toBe(false)
+  expect(hasConflictMarkers('<<<<<<<<< nine\n')).toBe(false)
+})
+
+test('splitHunks keeps the header and splits each hunk off whole', async () => {
+  const header = 'diff --git a/x b/x\nindex 1..2 100644\n--- a/x\n+++ b/x\n'
+  const one = '@@ -1,2 +1,2 @@\n-a\n+b\n c\n'
+  const two = '@@ -10,1 +10,1 @@\n-d\n+e\n'
+  const split = splitHunks(`${header}${one}${two}`)
+
+  expect(split.header).toBe(header)
+  expect(split.hunks).toEqual([one, two])
+  expect(splitHunks('Binary files a/x and b/x differ\n').hunks).toEqual([])
 })

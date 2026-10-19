@@ -27,7 +27,7 @@ const fakeRepo = (on: On, { isRevertStuck = false }: Options = {}) => {
     const line = args.join(' ')
     ran.push([...args])
     if (args[0] === 'rev-parse' && args[1] === '--show-toplevel') return ok('/repo\n')
-    if (line === 'rev-parse -q --verify REVERT_HEAD') return isRevertStuck ? ok('ddd444\n') : failed('')
+    if (line === 'rev-parse --absolute-git-dir') return ok('/repo/.git\n')
     if (args[0] === 'status') return ok(STATUS)
     if (line.startsWith('branch -r')) return ok('origin/HEAD\trefs/remotes/origin/dev\norigin/dev\t\norigin/feature\t\n')
     if (args[0] === 'branch') return ok('dev\torigin/dev\t\n')
@@ -40,6 +40,13 @@ const fakeRepo = (on: On, { isRevertStuck = false }: Options = {}) => {
     return ok()
   })
   on('fs.list', async () => ({ value: [] }))
+  // A revert stopped on conflicts leaves REVERT_HEAD in the git folder.
+  on('fs.stat', async ($, e) => {
+    if (isRevertStuck && e.path === '/repo/.git/REVERT_HEAD') {
+      return { value: { kind: 'file' as const, size: 0, mtimeMs: 0, isLink: false } }
+    }
+    throw new Error(`ENOENT: ${e.path}`)
+  })
 
   return ran
 }
@@ -103,15 +110,17 @@ test('revert asks first, then makes the undo commit', async ($, on) => {
   expect(ran).toContainEqual(['revert', '--no-edit', 'bbb222'])
 })
 
-test('a revert that conflicts is rolled back and explained', async ($, on) => {
+test('a revert that conflicts waits in Changes with Continue and Abort', async ($, on) => {
   const ran = fakeRepo(on, { isRevertStuck: true })
   const ui = await openView($, 'view-history')
 
   await ui.press({ key: 'commit-revert:bbb222' })
   await ui.press({ key: 'confirm-yes' })
 
-  expect(ran).toContainEqual(['revert', '--abort'])
-  expect(await ui.find({ type: 'Text', text: /conflicts with later changes, so it was rolled back/ })).toBeDefined()
+  expect(ran).not.toContainEqual(['revert', '--abort'])
+  expect(await ui.find({ type: 'Text', text: 'Revert stopped on conflicts. Resolve them in Merge Changes.' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Revert in progress' })).toBeDefined()
+  expect(await ui.find({ key: 'message' })).toBeDefined()
 })
 
 test('stash in Changes takes untracked files and the typed name', async ($, on) => {

@@ -14,6 +14,7 @@ import {
 import { chip } from './controls'
 import { remoteOnly } from './git'
 import { switchBranch } from './git-actions'
+import { drawMergeBar } from './merge-view'
 import { C } from './theme'
 import type { UI } from './ui'
 
@@ -63,9 +64,11 @@ export async function drawBranches($: $, ui: UI, repo: Repo, status: JSX.Element
   const form = await read($, branchFormState)
   const isNew = form?.kind === 'new'
   const remote = remoteOnly(repo)
+  const mergeBar = await drawMergeBar($, ui, repo)
 
   return (
     <Box key="branches" flexDirection="column" gap={1}>
+      {mergeBar}
       {form === null
         ? <Box>{chip(ui, { key: 'branch-new', label: '+ New branch', onPress: () => startNewBranch($) })}</Box>
         : (

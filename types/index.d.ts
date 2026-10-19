@@ -39,6 +39,9 @@ export type Commit = {
 // One `git stash list` entry; `ref` is what git calls it, like stash@{0}.
 export type Stash = { ref: string; age: string; message: string }
 
+// A multi-step git command waiting on you, usually because of conflicts.
+export type Operation = 'merge' | 'rebase' | 'revert' | 'cherry-pick'
+
 export type Repo = {
   isRepo: boolean
   root: string
@@ -55,6 +58,7 @@ export type Repo = {
   remoteBranches: string[]
   commits: Commit[]
   stashes: Stash[]
+  operation: Operation | null
 }
 
 export type Diff = { path: string; isStaged: boolean; text: string }
@@ -66,7 +70,20 @@ export type BranchForm = { kind: 'new' | 'rename'; from?: string; text: string }
 
 export type Notice = { kind: 'ok' | 'error'; text: string }
 
-export type ConfirmAction = 'commit' | 'commit-all' | 'amend' | 'push' | 'discard' | 'discard-all' | 'force-delete' | 'revert' | 'drop-stash'
+export type ConfirmAction =
+  | 'commit'
+  | 'commit-all'
+  | 'amend'
+  | 'push'
+  | 'discard'
+  | 'discard-all'
+  | 'force-delete'
+  | 'revert'
+  | 'drop-stash'
+  | 'merge'
+  | 'rebase'
+  | 'abort'
+  | 'resolve'
 
 // A question the pane asks before a risky git step; `path` names the file,
 // branch, commit or stash the step is for.
@@ -91,6 +108,7 @@ declare module 'claude-code' {
       branchForm: BranchForm | null
       historyLimit: number
       commitDiff: CommitDiff | null
+      mergeSource: string
     }
   }
 }

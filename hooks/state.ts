@@ -18,4 +18,5 @@ export const EMPTY_REPO: Repo = {
   remoteBranches: [],
   commits: [],
   stashes: [],
+  operation: null,
 }

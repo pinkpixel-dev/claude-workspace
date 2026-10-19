@@ -12,9 +12,13 @@
 - The Branches view lists local branches with their upstream and ahead/behind counts, and can create, rename and delete them. Delete tries the safe `-d` first and only offers a force delete, behind a confirm, when git refuses.
 - A remote picker shows up when a repo has more than one remote. Push, Pull and Fetch use it, and the choice is remembered per repo.
 - Pull on a branch with no upstream now pulls the same-named branch from the picked remote instead of failing.
-- **History** view with the last 50 commits (**Load more** for older ones). Click a commit to see its diff, or **Revert** it after a confirm. A revert that would conflict gets rolled back automatically.
+- **History** view with the last 50 commits (**Load more** for older ones). Click a commit to see its diff, or **Revert** it after a confirm.
 - **Stash** button in Changes (untracked files included, the message box names it), plus a **Stash** view with Apply, Pop and Drop.
 - Remote branches you don't have locally show up in Branches with a **Check out** button that makes a tracking branch.
+- **Merge** and **Rebase** (plain, not interactive) from the Branches view. Merging into `main`/`master` asks first, and rebase always asks.
+- A banner with **Continue** and **Abort** while a merge, rebase, revert or cherry-pick is waiting on you, including ones started outside the pane.
+- **Merge Changes** section for conflicted files with **Ours**, **Theirs** and **Resolved**. Resolved asks first if conflict markers are still in the file, and clicking a conflict opens it in the Files tab.
+- Per-hunk **Stage hunk** and **Unstage hunk** buttons in the file diff view.
 
 ### 🧹 Maintenance
 

@@ -22,12 +22,14 @@ import {
 } from './git-actions'
 import { showView } from './branch-actions'
 import { drawBranches } from './branches-view'
+import { drawDiff } from './diff-view'
 import { closeCommit, stashChanges } from './history-actions'
 import { drawHistory } from './history-view'
 import { drawStash } from './stash-view'
 import { chip, tab } from './controls'
-import { colorOf, isStaged, isUnstaged, letterOf } from './git'
-import { closeDiff, refreshRepo, selectRemote, showDiff } from './repo'
+import { colorOf, isConflicted, isStaged, isUnstaged, isUntracked, letterOf } from './git'
+import { drawConflicts, drawOperationBanner } from './merge-view'
+import { refreshRepo, selectRemote, showDiff } from './repo'
 import { EMPTY_REPO } from './state'
 import { C } from './theme'
 import type { UI } from './ui'
@@ -119,41 +121,6 @@ export async function drawGit($: $, ui: UI) {
     )
   }
 
-  const diff = await read($, diffState)
-  if (diff !== null) {
-    return (
-      <Box flexDirection="column" gap={1}>
-        <Box gap={1}>
-          {chip(ui, { key: 'diff-back', label: '‹ Back', onPress: () => closeDiff($), kind: 'quiet' })}
-          <Text color={C.text} bold wrap="truncate-start">{diff.path}</Text>
-          <Text color={C.faint}>{diff.isStaged ? 'staged' : 'working tree'}</Text>
-        </Box>
-        {diff.text === ''
-          ? <Text color={C.faint}>No text changes to show.</Text>
-          : <Code source={diff.text} format="diff" path={diff.path} />}
-      </Box>
-    )
-  }
-
-  const shownCommit = await read($, commitDiffState)
-  if (shownCommit !== null) {
-    const { commit, text } = shownCommit
-
-    return (
-      <Box flexDirection="column" gap={1}>
-        <Box gap={1}>
-          {chip(ui, { key: 'commit-back', label: '‹ Back', onPress: () => closeCommit($), kind: 'quiet' })}
-          <Text color={C.text} bold wrap="truncate-end">{commit.subject}</Text>
-          <Text color={C.faint}>{commit.short}</Text>
-        </Box>
-        {text === ''
-          ? <Text color={C.faint}>No text changes to show.</Text>
-          : <Code source={text} format="diff" />}
-      </Box>
-    )
-  }
-
-  const view = await read($, gitViewState)
   const busy = await read($, busyState)
   const notice = await read($, noticeState)
   const confirm = await read($, confirmState)
@@ -177,6 +144,31 @@ export async function drawGit($: $, ui: UI) {
     </Box>
   )
 
+  const diff = await read($, diffState)
+  if (diff !== null) {
+    const change = repo.changes.find(one => one.path === diff.path)
+    return drawDiff($, ui, diff, change !== undefined && isUntracked(change), status)
+  }
+
+  const shownCommit = await read($, commitDiffState)
+  if (shownCommit !== null) {
+    const { commit, text } = shownCommit
+
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Box gap={1}>
+          {chip(ui, { key: 'commit-back', label: '‹ Back', onPress: () => closeCommit($), kind: 'quiet' })}
+          <Text color={C.text} bold wrap="truncate-end">{commit.subject}</Text>
+          <Text color={C.faint}>{commit.short}</Text>
+        </Box>
+        {text === ''
+          ? <Text color={C.faint}>No text changes to show.</Text>
+          : <Code source={text} format="diff" />}
+      </Box>
+    )
+  }
+
+  const view = await read($, gitViewState)
   return (
     <Box flexDirection="column" gap={1}>
       <Box justifyContent="space-between" gap={1} flexWrap="wrap">
@@ -205,6 +197,8 @@ export async function drawGit($: $, ui: UI) {
         </Box>
       </Box>
 
+      {drawOperationBanner($, ui, repo)}
+
       <Box gap={1}>
         {tab(ui, 'view-changes', 'Changes', view === 'changes', () => showView($, 'changes'))}
         {tab(ui, 'view-history', 'History', view === 'history', () => showView($, 'history'))}
@@ -223,8 +217,9 @@ export async function drawGit($: $, ui: UI) {
 async function drawChanges($: $, ui: UI, repo: Repo, status: JSX.Element | null) {
   const { Box, Input } = ui
   const message = await read($, messageState)
-  const staged = repo.changes.filter(isStaged)
-  const unstaged = repo.changes.filter(isUnstaged)
+  const conflicts = repo.changes.filter(isConflicted)
+  const staged = repo.changes.filter(one => !isConflicted(one) && isStaged(one))
+  const unstaged = repo.changes.filter(one => !isConflicted(one) && isUnstaged(one))
 
   return (
     <Box key="changes" flexDirection="column" gap={1}>
@@ -249,6 +244,7 @@ async function drawChanges($: $, ui: UI, repo: Repo, status: JSX.Element | null)
 
       {status}
 
+      {drawConflicts($, ui, conflicts)}
       {staged.length > 0 && drawSection($, ui, 'Staged Changes', staged, true)}
       {drawSection($, ui, 'Changes', unstaged, false)}
     </Box>

@@ -1,7 +1,7 @@
 // The git plumbing every Source Control action shares: running git, showing
 // its errors, and reading the repo back into state.
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, ProcessRunInit } from 'claude-code'
+import type { EngineInterface, ProcessRunInit, ProcessRunResult } from 'claude-code'
 
 import type { Change, Confirm } from '../types'
 import {
@@ -9,6 +9,7 @@ import {
   isStaged,
   limitDiff,
   LOG_FORMAT,
+  OPERATION_MARKERS,
   parseBranches,
   parseLog,
   parseRemoteBranches,
@@ -25,6 +26,7 @@ import { EMPTY_REPO, HISTORY_PAGE } from './state'
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
 const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
 const diffState = atom({ plugin: 'workspace', key: 'diff' } as const, null)
+const gitViewState = atom({ plugin: 'workspace', key: 'gitView' } as const, 'changes')
 const historyLimitState = atom({ plugin: 'workspace', key: 'historyLimit' } as const, HISTORY_PAGE)
 const noticeState = atom({ plugin: 'workspace', key: 'notice' } as const, null)
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
@@ -40,9 +42,9 @@ export async function git($: $, args: string[], init: ProcessRunInit = {}) {
   })
 }
 
-export async function gitOk($: $, args: string[]) {
+export async function gitOk($: $, args: string[], init: ProcessRunInit = {}) {
   const { root } = await read($, repoState)
-  const ran = await git($, args, { cwd: root })
+  const ran = await git($, args, { ...init, cwd: root })
   if (ran.exitCode !== 0) throw new Error(shortError(ran.stderr, ran.stdout))
 
   return ran
@@ -86,15 +88,37 @@ export async function run($: $, label: string, work: () => Promise<void>) {
   }
 }
 
+// Which operation is waiting on you, from what it leaves in the git folder.
+export async function readOperation($: $, gitDir: string) {
+  const found = await Promise.all(
+    OPERATION_MARKERS.map(([, marker]) => $.fs.stat(`${gitDir}/${marker}`).then(() => true, () => false)),
+  )
+  const index = found.indexOf(true)
+
+  return index < 0 ? null : OPERATION_MARKERS[index]?.[0] ?? null
+}
+
+// For a step that failed: when git stopped partway with conflicts, point at
+// them in Changes; otherwise show git's own complaint. Either way it throws.
+export async function failedStep($: $, label: string, ran: ProcessRunResult): Promise<never> {
+  const { root } = await read($, repoState)
+  const dir = await git($, ['rev-parse', '--absolute-git-dir'], { cwd: root })
+  const operation = dir.exitCode === 0 ? await readOperation($, dir.stdout.trim()) : null
+  if (operation === null) throw new Error(shortError(ran.stderr, ran.stdout))
+
+  await update($, gitViewState, () => 'changes' as const)
+  throw new Error(`${label} stopped on conflicts. Resolve them in Merge Changes.`)
+}
+
 export async function refreshRepo($: $) {
-  const top = await git($, ['rev-parse', '--show-toplevel']).catch(() => null)
+  const top = await git($, ['rev-parse', '--show-toplevel', '--absolute-git-dir']).catch(() => null)
 
   if (top === null || top.exitCode !== 0) {
     await update($, repoState, current => ({ ...current, isRepo: false, changes: [] }))
     return
   }
 
-  const root = top.stdout.trim()
+  const [root = '', gitDir = `${root}/.git`] = top.stdout.trim().split('\n')
   const limit = await read($, historyLimitState)
   // A repo with no commits yet fails `log`, which reads as an empty history.
   const [status, branches, remotes, remoteBranches, log, stashes] = await Promise.all([
@@ -108,6 +132,7 @@ export async function refreshRepo($: $) {
   const summary = parseStatus(status.stdout)
   const remoteNames = parseRemotes(remotes.stdout)
   const saved = await $.store.get(remoteKey(root)).catch(() => undefined)
+  const operation = await readOperation($, gitDir)
   await update($, repoState, () => ({
     isRepo: true,
     root,
@@ -118,6 +143,7 @@ export async function refreshRepo($: $) {
     remoteBranches: parseRemoteBranches(remoteBranches.stdout),
     commits: log.exitCode === 0 ? parseLog(log.stdout) : [],
     stashes: parseStashes(stashes.stdout),
+    operation,
   }))
 
   // Keep an open diff in step, or close it once the file has no changes left.

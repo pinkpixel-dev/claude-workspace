@@ -18,6 +18,7 @@ import {
 } from './git'
 import { forceDeleteBranch } from './branch-actions'
 import { dropStash, revert } from './history-actions'
+import { abortOperation, markResolved, merge, rebase } from './merge-actions'
 import { confirmed, fail, git, gitOk, refreshRepo, run } from './repo'
 import { EMPTY_REPO, PANE } from './state'
 
@@ -45,6 +46,14 @@ async function commitWith($: $, label: string, args: string[], fallback: string)
 export function stage($: $, path: string) {
   return run($, 'Staging', async () => {
     await gitOk($, ['add', '-A', '--', path])
+  })
+}
+
+// Stages or unstages one hunk of a file's diff; `header` is the diff's file header.
+export function applyHunk($: $, header: string, hunk: string, isStaged: boolean) {
+  return run($, isStaged ? 'Unstaging' : 'Staging', async () => {
+    const args = ['apply', '--cached', '--recount', ...(isStaged ? ['--reverse'] : []), '-']
+    await gitOk($, args, { stdin: `${header}${hunk}` })
   })
 }
 
@@ -127,6 +136,17 @@ export async function confirmYes($: $) {
     case 'revert': {
       const commit = (await read($, repoState)).commits.find(one => one.sha === ask.path)
       if (commit !== undefined) return revert($, commit)
+      return cancelConfirm($)
+    }
+    case 'merge':
+      return merge($, ask.path ?? '')
+    case 'rebase':
+      return rebase($, ask.path ?? '')
+    case 'abort':
+      return abortOperation($)
+    case 'resolve': {
+      const change = (await read($, repoState)).changes.find(one => one.path === ask.path)
+      if (change !== undefined) return markResolved($, change)
       return cancelConfirm($)
     }
     case 'drop-stash': {

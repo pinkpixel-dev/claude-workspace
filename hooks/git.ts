@@ -1,5 +1,5 @@
 // Pure git helpers: no `$`, so the tests can run them directly.
-import type { Branch, Change, Commit, Repo, Stash } from '../types'
+import type { Branch, Change, Commit, Operation, Repo, Stash } from '../types'
 import { C } from './theme'
 
 export type StatusSummary = {
@@ -197,6 +197,43 @@ export const isProtected = (branch: string) => branch === 'main' || branch === '
 export const isPushed = (repo: Pick<Repo, 'upstream' | 'ahead'>) => repo.upstream !== undefined && repo.ahead === 0
 
 export const isUntracked = (change: Change) => change.work === '?'
+
+// The status pairs git uses for a file both sides changed (or one side deleted).
+const CONFLICT_PAIRS = ['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']
+
+export const isConflicted = (change: Change) => CONFLICT_PAIRS.includes(`${change.index}${change.work}`)
+
+// What's in `.git` while each operation waits on you, checked in this order.
+export const OPERATION_MARKERS: [Operation, string][] = [
+  ['rebase', 'rebase-merge'],
+  ['rebase', 'rebase-apply'],
+  ['merge', 'MERGE_HEAD'],
+  ['revert', 'REVERT_HEAD'],
+  ['cherry-pick', 'CHERRY_PICK_HEAD'],
+]
+
+export const operationArgs = (operation: Operation, step: 'continue' | 'abort') => {
+  // A merge finishes by committing with the message git already wrote.
+  if (operation === 'merge') return step === 'continue' ? ['commit', '--no-edit'] : ['merge', '--abort']
+
+  return [operation, `--${step}`]
+}
+
+// A line git writes at the start or end of a conflict block.
+export const hasConflictMarkers = (text: string) => /^(<{7}|>{7})( |$)/m.test(text)
+
+// Splits one file's diff into its header and hunks, so each hunk can be
+// applied by itself as header + hunk.
+export const splitHunks = (diff: string) => {
+  const first = diff.indexOf('\n@@')
+  if (!diff.startsWith('@@') && first < 0) return { header: diff, hunks: [] }
+
+  const header = diff.startsWith('@@') ? '' : diff.slice(0, first + 1)
+  const body = diff.slice(header.length)
+  const hunks = body.split(/\n(?=@@ )/).map((hunk, i, all) => (i < all.length - 1 ? `${hunk}\n` : hunk))
+
+  return { header, hunks: hunks.filter(hunk => hunk.startsWith('@@')) }
+}
 
 // Throws away a file's working tree changes; an untracked file is deleted outright.
 export const discardArgs = (change: Change) =>

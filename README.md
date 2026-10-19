@@ -16,7 +16,7 @@ I made it because I kept jumping out to my editor just to check what changed or 
 **Source Control tab**
 
 - Staged and unstaged changes, colored the way VS Code does it (added, modified, deleted, renamed)
-- Click a file to see its diff, and use `+` and `−` to stage or unstage it
+- Click a file to see its diff, and use `+` and `−` to stage or unstage it. Inside the diff, each hunk gets its own **Stage hunk** or **Unstage hunk** button
 - **Stage all** for everything at once
 - `↺` on a file throws away its changes, and **Discard all** does the whole list. Both ask first
 - A commit message box with a **Commit** button (Enter commits too)
@@ -27,6 +27,8 @@ I made it because I kept jumping out to my editor just to check what changed or 
 - A **Branches** view listing your local branches with what each one tracks, plus **+ New branch**, **Rename** and **Delete**. Branches that only exist on a remote show up underneath with a **Check out** button
 - A **History** view with the last 50 commits on your branch (**Load more** for older ones). Click one to see its diff, or **Revert** it
 - **Stash** in the Changes view sets your work aside, and the **Stash** view has **Apply**, **Pop** and **Drop** for each entry
+- **Merge** and **Rebase** at the top of the Branches view, with any local or remote branch as the source
+- When a merge, rebase, revert or cherry-pick stops on conflicts, a banner shows up with **Continue** and **Abort**, and the conflicted files get their own **Merge Changes** section with **Ours**, **Theirs** and **Resolved**. This works for ones you started from a terminal too
 - A remote picker when the repo has more than one remote. Push, Pull and Fetch use it, and the pane remembers your pick for that repo
 - A confirm step before committing or pushing straight to `main` or `master`
 - An **Initialize Repository** button when the folder isn't a git repo yet (it runs `git init -b main`)
@@ -80,15 +82,22 @@ A few things worth knowing:
 - Pull runs `git pull --no-edit`, so a merge never stops to open an editor. If you picked a remote other than the one your branch tracks, Push and Pull name that remote and branch directly.
 - New branches start from wherever you are, and the pane switches you onto them.
 - **Check out** on a remote branch runs `git switch --track <remote>/<name>`, which makes a local copy that tracks it.
-- **Revert** makes a new commit that undoes the old one, so it never rewrites history. If it would conflict with later changes, the pane rolls it back and tells you instead of leaving you mid-revert. Merge commits don't get a Revert button.
+- **Revert** makes a new commit that undoes the old one, so it never rewrites history. If it conflicts with later changes, it stops in Merge Changes like a merge does. Merge commits don't get a Revert button.
 - Stash includes untracked files. If you've typed something in the commit message box, that becomes the stash's name. **Drop** asks first, since a dropped stash is basically gone.
-- If applying or popping a stash conflicts, git keeps the stash and the conflicted files show up in Changes.
+- If applying or popping a stash conflicts, git keeps the stash and the conflicted files show up in Merge Changes.
+- Merging into `main` or `master` asks first. Rebase always asks, since it rewrites your branch's commits (and if the branch is already pushed, you'll need a force push after).
+- Click a conflicted file to open it in the Files tab and fix it by hand, then hit **Resolved**. If the file still has conflict markers in it, the pane asks before staging it.
+- **Ours** and **Theirs** keep one side's whole file. Heads up: during a rebase git flips these, so **Ours** is the branch you're rebasing onto and **Theirs** is your own commit.
+- **Continue** finishes the merge (or moves the rebase to its next commit) using git's own commit message, since there's no editor to open. It won't run while conflicts are left.
+- **Abort** asks first, then puts everything back to how it was before the merge or rebase started.
 - Delete tries the safe `git branch -d` first. If the branch has commits that aren't merged anywhere, git refuses, and the pane offers a **Force delete** (`-D`) behind a confirm. You can't delete the branch you're on.
 
 ## Limitations
 
 - **Git hooks don't run.** Claude Code runs git for mods with repo hooks turned off, so things like husky or pre-commit checks get skipped for commits made from the pane.
 - **Push and pull won't ask for a password.** They need an SSH key or a git credential helper already set up. Without one they fail fast and show git's error instead of hanging.
+- **Rebase is plain only.** There's no interactive rebase (squash, reorder, edit), since that needs an editor the pane can't drive.
+- **Staging goes down to hunks, not lines.** You can't stage a single line, and untracked files only stage as a whole.
 - **The editor is a plain text box.** It's good for quick edits, but there's no highlighting while you type, no multi-cursor and no real undo history.
 - **Big and binary files are view only.** Files over 1 MB don't open, binary files show a note, and very long files show the start and can't be edited.
 - **The background fetch is silent.** If it fails (no network, a key that needs a passphrase), it just skips that round. Hit **Fetch** to see the actual error.
@@ -105,7 +114,9 @@ It's a single hooks module. `/workspace` opens a pane, and the pane is drawn fro
 hooks/
   register.tsx        /workspace command, refresh after each turn, the pane frame and tabs
   files-view.tsx      file browser, viewer and editor
-  git-view.tsx        branch and remote pickers, the Changes view, diffs
+  git-view.tsx        branch and remote pickers, sub-tabs, the Changes view
+  diff-view.tsx       a file's diff, split into hunks
+  merge-view.tsx      the operation banner, Merge Changes and the Merge/Rebase row
   branches-view.tsx   the Branches view
   history-view.tsx    the History view
   stash-view.tsx      the Stash view
@@ -113,6 +124,7 @@ hooks/
   git-actions.ts      what the Source Control buttons do, plus the background fetch
   branch-actions.ts   new, rename, delete and check out remote branches
   history-actions.ts  history, revert and stash
+  merge-actions.ts    merge, rebase, Continue/Abort and resolving conflicts
   repo.ts             shared git plumbing: running git, errors, reading repo status
   git.ts              parses git output (no Claude Code calls, so it's easy to test)
   controls.tsx        shared chip buttons, tabs and divider

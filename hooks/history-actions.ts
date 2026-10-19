@@ -5,7 +5,7 @@ import type { EngineInterface } from 'claude-code'
 import type { Commit, Confirm, Stash } from '../types'
 import { refreshDir, reloadFile } from './actions'
 import { limitDiff, shortError } from './git'
-import { confirmed, fail, git, gitOk, refreshRepo, run } from './repo'
+import { confirmed, fail, failedStep, git, gitOk, refreshRepo, run } from './repo'
 import { EMPTY_REPO, HISTORY_PAGE } from './state'
 
 const commitDiffState = atom({ plugin: 'workspace', key: 'commitDiff' } as const, null)
@@ -35,8 +35,8 @@ export async function loadMore($: $) {
   await refreshRepo($)
 }
 
-// Makes a new commit that undoes `commit`. If that conflicts, the revert is
-// rolled back, since the pane can't walk you through a conflict yet.
+// Makes a new commit that undoes `commit`. A conflict leaves the revert
+// waiting in Merge Changes, like a merge does.
 export async function revert($: $, commit: Commit) {
   const ask: Confirm = {
     action: 'revert',
@@ -50,13 +50,7 @@ export async function revert($: $, commit: Commit) {
     const { root } = await read($, repoState)
     const ran = await git($, ['revert', '--no-edit', commit.sha], { cwd: root })
 
-    if (ran.exitCode !== 0) {
-      const isStuck = (await git($, ['rev-parse', '-q', '--verify', 'REVERT_HEAD'], { cwd: root })).exitCode === 0
-      if (!isStuck) throw new Error(shortError(ran.stderr, ran.stdout))
-
-      await gitOk($, ['revert', '--abort'])
-      throw new Error(`Reverting ${commit.short} conflicts with later changes, so it was rolled back.`)
-    }
+    if (ran.exitCode !== 0) await failedStep($, 'Revert', ran)
 
     $.ui.toast(`Reverted ${commit.short}`)
     await reloadFile($)
