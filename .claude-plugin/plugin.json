@@ -1,7 +1,7 @@
 {
   "name": "workspace",
   "version": "0.10.0",
-  "description": "A workspace pane for Claude Code: files, a This Turn view of Claude's edits with diff and revert, usage stats, VS Code style source control, and GitHub pull requests and issues.",
+  "description": "A workspace pane for Claude Code: files, a This Turn view of Claude's edits with diff and revert, usage stats, , file changes, tasks, VS Code style source control, and GitHub pull requests and issues.",
   "author": { "name": "Pink Pixel", "url": "https://pinkpixel.dev" },
   "types": "./types/index.d.ts"
 }

@@ -9,7 +9,7 @@
     {
       "name": "workspace",
       "source": "./",
-      "description": "A workspace pane for Claude Code: files, a This Turn view of Claude's edits with diff and revert, usage stats, VS Code style source control, and GitHub pull requests and issues."
+      "description": "A workspace pane for Claude Code: files, a This Turn view of Claude's edits with diff and revert, usage stats, file changes, tasks, VS Code style source control, and GitHub pull requests and issues."
     }
   ]
 }
