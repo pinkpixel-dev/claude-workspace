@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - October 18, 2026
 
 ### ✨ Files
 
