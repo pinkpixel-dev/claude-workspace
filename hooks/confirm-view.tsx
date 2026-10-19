@@ -25,6 +25,7 @@ const RISKY = [
   'force-push',
   'drop-all-stashes',
   'remove-remote',
+  'delete-remote-tag',
 ]
 
 export function confirmCard($: $, ui: UI, confirm: Confirm) {

@@ -169,6 +169,17 @@ test('a tag can be checked out detached, pushed and deleted', async ($, on) => {
   expect(ran).toContainEqual(['tag', '-d', 'v1.0.0'])
 })
 
+test('a remote tag is deleted on the remote only after a confirm', async ($, on) => {
+  const ran = fakeRepo(on)
+  const ui = await openView($, 'view-tags')
+
+  await ui.press({ key: 'tag-delete-remote:v1.0.0' })
+  expect(ran.some(args => args.includes('refs/tags/v1.0.0'))).toBe(false)
+
+  await ui.press({ key: 'confirm-yes' })
+  expect(ran).toContainEqual(['push', 'origin', '--delete', 'refs/tags/v1.0.0'])
+})
+
 // Commit and changes
 
 test('undoing a pushed HEAD asks, then soft resets and puts the message back', async ($, on) => {

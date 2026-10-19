@@ -3,7 +3,7 @@ import type { EngineInterface } from 'claude-code'
 
 import type { Repo, Tag } from '../types'
 import { chip } from './controls'
-import { cancelTagForm, checkoutTag, deleteTag, pushTags, saveTagForm, setTagField, startTag } from './tag-actions'
+import { cancelTagForm, checkoutTag, deleteRemoteTag, deleteTag, pushTags, saveTagForm, setTagField, startTag } from './tag-actions'
 import { C } from './theme'
 import type { UI } from './ui'
 
@@ -25,6 +25,7 @@ function drawTagRow($: $, ui: UI, tag: Tag, hasRemote: boolean) {
         {chip(ui, { key: `tag-checkout:${tag.name}`, label: 'Check out', kind: 'row', onPress: () => checkoutTag($, tag.name) })}
         {hasRemote && chip(ui, { key: `tag-push:${tag.name}`, label: 'Push', kind: 'row', onPress: () => pushTags($, tag.name) })}
         {chip(ui, { key: `tag-delete:${tag.name}`, label: 'Delete', kind: 'row', onPress: () => deleteTag($, tag.name) })}
+        {hasRemote && chip(ui, { key: `tag-delete-remote:${tag.name}`, label: 'Delete remote', kind: 'row', onPress: () => deleteRemoteTag($, tag.name) })}
       </Box>
     </Box>
   )

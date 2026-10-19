@@ -20,6 +20,7 @@ import { deleteRemoteBranch, forceDeleteBranch } from './branch-actions'
 import { dropAllStashes, dropStash, revert, undoCommit } from './history-actions'
 import { abortOperation, markResolved, merge, rebase } from './merge-actions'
 import { removeRemote } from './remote-actions'
+import { deleteRemoteTag } from './tag-actions'
 import { confirmed, fail, git, gitOk, refreshRepo, run } from './repo'
 import { forcePush, syncBranch } from './sync-actions'
 import { revertTurn } from './turn-actions'
@@ -184,6 +185,8 @@ export async function confirmYes($: $) {
       return dropAllStashes($)
     case 'remove-remote':
       return removeRemote($, ask.path ?? '')
+    case 'delete-remote-tag':
+      return deleteRemoteTag($, ask.path ?? '')
     case 'discard': {
       const change = (await read($, repoState)).changes.find(one => one.path === ask.path)
       if (change !== undefined) return discard($, change)

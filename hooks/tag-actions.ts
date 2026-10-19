@@ -2,10 +2,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { TagForm } from '../types'
+import type { Confirm, TagForm } from '../types'
 import { closeFile, refreshDir } from './actions'
 import { showView } from './branch-actions'
-import { fail, gitOk, run } from './repo'
+import { confirmed, fail, gitOk, run } from './repo'
 import { EMPTY_REPO } from './state'
 
 const isEditingState = atom({ plugin: 'workspace', key: 'isEditing' } as const, false)
@@ -75,5 +75,24 @@ export async function pushTags($: $, name?: string) {
   await run($, 'Pushing', async () => {
     await gitOk($, ['push', remote, ...(name === undefined ? ['--tags'] : [`refs/tags/${name}`])])
     $.ui.toast(name === undefined ? `Pushed all tags to ${remote}` : `Pushed ${name} to ${remote}`)
+  })
+}
+
+// Deletes the tag on the remote for everyone, so it always asks. Your local copy stays.
+export async function deleteRemoteTag($: $, name: string) {
+  const { remote } = await read($, repoState)
+  if (remote === '') return fail($, new Error('No remote to delete it from.'))
+
+  const ask: Confirm = {
+    action: 'delete-remote-tag',
+    path: name,
+    question: `Delete ${name} on ${remote}? Your local tag stays.`,
+    yes: 'Yes, delete',
+  }
+  if (!(await confirmed($, ask))) return
+
+  await run($, 'Deleting', async () => {
+    await gitOk($, ['push', remote, '--delete', `refs/tags/${name}`])
+    $.ui.toast(`Deleted ${name} on ${remote}`)
   })
 }

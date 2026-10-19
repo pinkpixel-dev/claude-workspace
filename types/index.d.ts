@@ -131,6 +131,7 @@ export type ConfirmAction =
   | 'undo-commit'
   | 'drop-all-stashes'
   | 'remove-remote'
+  | 'delete-remote-tag'
 
 // A question the pane asks before a risky git step; `path` names the file,
 // branch, commit or stash the step is for.

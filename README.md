@@ -79,7 +79,7 @@ What's in the pane:
 - A branch picker that switches branches for you
 - A **Branches** view listing your local branches with what each one tracks, plus **+ New branch**, **Rename** and **Delete**. A new branch can start from where you are or from any branch, remote branch or tag. Remote branches show up underneath with **Delete**, plus **Check out** on the ones you don't have locally yet
 - A **Remotes** section at the bottom of Branches to add or remove remotes
-- A **Tags** view listing your tags, newest first, with **+ New tag** (add a message to make it annotated), **Push all**, and **Check out**, **Push** and **Delete** on each tag
+- A **Tags** view listing your tags, newest first, with **+ New tag** (add a message to make it annotated), **Push all**, and **Check out**, **Push**, **Delete** and **Delete remote** on each tag
 - A **History** view with the last 50 commits on your branch (**Load more** for older ones) and a branch graph beside them. Click one to see its diff, **Revert** it, or start a **Branch** or **Tag** from it. The top commit also gets **Undo**. A little bar chart at the top shows commits per day for the last two weeks
 - **Stash** in the Changes view sets your work aside. The **Stash** view has **Stash all**, **Stash staged** and **Drop all** at the top, and **Apply**, **Pop** and **Drop** for each entry
 - **Merge** and **Rebase** at the top of the Branches view, with any local or remote branch as the source
@@ -164,7 +164,7 @@ A few things worth knowing:
 - New branches start from wherever you are unless you pick something else in the **from** picker, and the pane switches you onto them. Starting from a remote branch makes the new branch track it.
 - **Undo** on the top commit runs `git reset --soft HEAD~1`, so its changes land back in Staged Changes and its message goes back in the commit box (unless you'd already typed something there). If the commit is pushed, it asks first.
 - **Delete** on a remote branch runs `git push <remote> --delete <name>`, which deletes it for everyone, so it always asks first.
-- Tags are created without a message as lightweight tags, or annotated (`git tag -a`) once you type one. **Check out** on a tag leaves you on that commit with no branch (a detached HEAD). **Delete** only removes your local copy, so a tag you already pushed stays on the remote.
+- Tags are created without a message as lightweight tags, or annotated (`git tag -a`) once you type one. **Check out** on a tag leaves you on that commit with no branch (a detached HEAD). **Delete** only removes your local copy. **Delete remote** runs `git push <remote> --delete refs/tags/<name>` and asks first, and it leaves your local copy alone.
 - **Remove** on a remote asks first. It drops that remote's branches from your clone but doesn't touch the server.
 - **Check out** on a remote branch runs `git switch --track <remote>/<name>`, which makes a local copy that tracks it.
 - **Revert** makes a new commit that undoes the old one, so it never rewrites history. If it conflicts with later changes, it stops in Merge Changes like a merge does. Merge commits don't get a Revert button.
