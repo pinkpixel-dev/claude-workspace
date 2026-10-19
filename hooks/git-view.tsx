@@ -22,6 +22,9 @@ import {
 } from './git-actions'
 import { showView } from './branch-actions'
 import { drawBranches } from './branches-view'
+import { closeCommit, stashChanges } from './history-actions'
+import { drawHistory } from './history-view'
+import { drawStash } from './stash-view'
 import { chip, tab } from './controls'
 import { colorOf, isStaged, isUnstaged, letterOf } from './git'
 import { closeDiff, refreshRepo, selectRemote, showDiff } from './repo'
@@ -30,6 +33,7 @@ import { C } from './theme'
 import type { UI } from './ui'
 
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
+const commitDiffState = atom({ plugin: 'workspace', key: 'commitDiff' } as const, null)
 const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
 const diffState = atom({ plugin: 'workspace', key: 'diff' } as const, null)
 const gitViewState = atom({ plugin: 'workspace', key: 'gitView' } as const, 'changes')
@@ -131,6 +135,24 @@ export async function drawGit($: $, ui: UI) {
     )
   }
 
+  const shownCommit = await read($, commitDiffState)
+  if (shownCommit !== null) {
+    const { commit, text } = shownCommit
+
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Box gap={1}>
+          {chip(ui, { key: 'commit-back', label: '‹ Back', onPress: () => closeCommit($), kind: 'quiet' })}
+          <Text color={C.text} bold wrap="truncate-end">{commit.subject}</Text>
+          <Text color={C.faint}>{commit.short}</Text>
+        </Box>
+        {text === ''
+          ? <Text color={C.faint}>No text changes to show.</Text>
+          : <Code source={text} format="diff" />}
+      </Box>
+    )
+  }
+
   const view = await read($, gitViewState)
   const busy = await read($, busyState)
   const notice = await read($, noticeState)
@@ -185,10 +207,15 @@ export async function drawGit($: $, ui: UI) {
 
       <Box gap={1}>
         {tab(ui, 'view-changes', 'Changes', view === 'changes', () => showView($, 'changes'))}
+        {tab(ui, 'view-history', 'History', view === 'history', () => showView($, 'history'))}
         {tab(ui, 'view-branches', `Branches ${repo.branches.length}`, view === 'branches', () => showView($, 'branches'))}
+        {tab(ui, 'view-stash', repo.stashes.length > 0 ? `Stash ${repo.stashes.length}` : 'Stash', view === 'stash', () => showView($, 'stash'))}
       </Box>
 
-      {view === 'branches' ? await drawBranches($, ui, repo, status) : await drawChanges($, ui, repo, status)}
+      {view === 'history' && await drawHistory($, ui, repo, status)}
+      {view === 'branches' && await drawBranches($, ui, repo, status)}
+      {view === 'stash' && drawStash($, ui, repo, status)}
+      {view === 'changes' && await drawChanges($, ui, repo, status)}
     </Box>
   )
 }
@@ -216,6 +243,7 @@ async function drawChanges($: $, ui: UI, repo: Repo, status: JSX.Element | null)
           {chip(ui, { key: 'amend', label: 'Amend', onPress: () => amend($) })}
           {unstaged.length > 0 && chip(ui, { key: 'commit-all', label: 'Commit all', onPress: () => commitAll($) })}
           {unstaged.length > 0 && chip(ui, { key: 'stage-all', label: 'Stage all', onPress: () => stageAll($) })}
+          {repo.changes.length > 0 && chip(ui, { key: 'stash', label: 'Stash', onPress: () => stashChanges($) })}
         </Box>
       </Box>
 

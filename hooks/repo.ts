@@ -8,17 +8,24 @@ import {
   BRANCH_FORMAT,
   isStaged,
   limitDiff,
+  LOG_FORMAT,
   parseBranches,
+  parseLog,
+  parseRemoteBranches,
   parseRemotes,
+  parseStashes,
   parseStatus,
   pickRemote,
+  REMOTE_BRANCH_FORMAT,
   shortError,
+  STASH_FORMAT,
 } from './git'
-import { EMPTY_REPO } from './state'
+import { EMPTY_REPO, HISTORY_PAGE } from './state'
 
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
 const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
 const diffState = atom({ plugin: 'workspace', key: 'diff' } as const, null)
+const historyLimitState = atom({ plugin: 'workspace', key: 'historyLimit' } as const, HISTORY_PAGE)
 const noticeState = atom({ plugin: 'workspace', key: 'notice' } as const, null)
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
 
@@ -88,10 +95,15 @@ export async function refreshRepo($: $) {
   }
 
   const root = top.stdout.trim()
-  const [status, branches, remotes] = await Promise.all([
+  const limit = await read($, historyLimitState)
+  // A repo with no commits yet fails `log`, which reads as an empty history.
+  const [status, branches, remotes, remoteBranches, log, stashes] = await Promise.all([
     git($, ['status', '--porcelain=v1', '-z', '--branch'], { cwd: root }),
     git($, ['branch', BRANCH_FORMAT], { cwd: root }),
     git($, ['remote'], { cwd: root }),
+    git($, ['branch', '-r', REMOTE_BRANCH_FORMAT], { cwd: root }),
+    git($, ['log', '-n', String(limit), LOG_FORMAT], { cwd: root }),
+    git($, ['stash', 'list', STASH_FORMAT], { cwd: root }),
   ])
   const summary = parseStatus(status.stdout)
   const remoteNames = parseRemotes(remotes.stdout)
@@ -103,6 +115,9 @@ export async function refreshRepo($: $) {
     branches: parseBranches(branches.stdout),
     remotes: remoteNames,
     remote: pickRemote(remoteNames, saved, summary.upstream),
+    remoteBranches: parseRemoteBranches(remoteBranches.stdout),
+    commits: log.exitCode === 0 ? parseLog(log.stdout) : [],
+    stashes: parseStashes(stashes.stdout),
   }))
 
   // Keep an open diff in step, or close it once the file has no changes left.

@@ -12,10 +12,13 @@
 - The Branches view lists local branches with their upstream and ahead/behind counts, and can create, rename and delete them. Delete tries the safe `-d` first and only offers a force delete, behind a confirm, when git refuses.
 - A remote picker shows up when a repo has more than one remote. Push, Pull and Fetch use it, and the choice is remembered per repo.
 - Pull on a branch with no upstream now pulls the same-named branch from the picked remote instead of failing.
+- **History** view with the last 50 commits (**Load more** for older ones). Click a commit to see its diff, or **Revert** it after a confirm. A revert that would conflict gets rolled back automatically.
+- **Stash** button in Changes (untracked files included, the message box names it), plus a **Stash** view with Apply, Pop and Drop.
+- Remote branches you don't have locally show up in Branches with a **Check out** button that makes a tracking branch.
 
 ### 🧹 Maintenance
 
-- Split the git code out of `actions.ts` into `repo.ts` (shared plumbing) and `git-actions.ts` (Source Control actions), with branch actions in `branch-actions.ts` and the Branches view in `branches-view.tsx`.
+- Split the git code out of `actions.ts` into `repo.ts` (shared plumbing) and `git-actions.ts` (Source Control actions), with branch actions in `branch-actions.ts`, history and stash actions in `history-actions.ts`, and a view file for each sub-tab.
 
 ## 0.2.0 - October 18, 2026
 

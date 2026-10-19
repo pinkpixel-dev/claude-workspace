@@ -24,7 +24,9 @@ I made it because I kept jumping out to my editor just to check what changed or 
 - **Fetch**, **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch
 - A quiet fetch every 3 minutes while the pane is showing, so the ahead/behind counts stay current
 - A branch picker that switches branches for you
-- A **Branches** view listing your local branches with what each one tracks, plus **+ New branch**, **Rename** and **Delete**
+- A **Branches** view listing your local branches with what each one tracks, plus **+ New branch**, **Rename** and **Delete**. Branches that only exist on a remote show up underneath with a **Check out** button
+- A **History** view with the last 50 commits on your branch (**Load more** for older ones). Click one to see its diff, or **Revert** it
+- **Stash** in the Changes view sets your work aside, and the **Stash** view has **Apply**, **Pop** and **Drop** for each entry
 - A remote picker when the repo has more than one remote. Push, Pull and Fetch use it, and the pane remembers your pick for that repo
 - A confirm step before committing or pushing straight to `main` or `master`
 - An **Initialize Repository** button when the folder isn't a git repo yet (it runs `git init -b main`)
@@ -77,6 +79,10 @@ A few things worth knowing:
 - If your branch has no upstream yet, Push runs `git push -u <remote> <branch>` for you.
 - Pull runs `git pull --no-edit`, so a merge never stops to open an editor. If you picked a remote other than the one your branch tracks, Push and Pull name that remote and branch directly.
 - New branches start from wherever you are, and the pane switches you onto them.
+- **Check out** on a remote branch runs `git switch --track <remote>/<name>`, which makes a local copy that tracks it.
+- **Revert** makes a new commit that undoes the old one, so it never rewrites history. If it would conflict with later changes, the pane rolls it back and tells you instead of leaving you mid-revert. Merge commits don't get a Revert button.
+- Stash includes untracked files. If you've typed something in the commit message box, that becomes the stash's name. **Drop** asks first, since a dropped stash is basically gone.
+- If applying or popping a stash conflicts, git keeps the stash and the conflicted files show up in Changes.
 - Delete tries the safe `git branch -d` first. If the branch has commits that aren't merged anywhere, git refuses, and the pane offers a **Force delete** (`-D`) behind a confirm. You can't delete the branch you're on.
 
 ## Limitations
@@ -97,19 +103,22 @@ It's a single hooks module. `/workspace` opens a pane, and the pane is drawn fro
 
 ```text
 hooks/
-  register.tsx       /workspace command, refresh after each turn, the pane frame and tabs
-  files-view.tsx     file browser, viewer and editor
-  git-view.tsx       branch and remote pickers, the Changes view, diffs
-  branches-view.tsx  the Branches view
-  actions.ts         what the Files tab's buttons do: file reads and writes
-  git-actions.ts     what the Source Control buttons do, plus the background fetch
-  branch-actions.ts  new, rename and delete branch
-  repo.ts            shared git plumbing: running git, errors, reading repo status
-  git.ts             parses git output (no Claude Code calls, so it's easy to test)
-  controls.tsx       shared chip buttons, tabs and divider
-  theme.ts           color tokens
-  *.test.ts(x)       tests
-types/index.d.ts     the shape of the session state
+  register.tsx        /workspace command, refresh after each turn, the pane frame and tabs
+  files-view.tsx      file browser, viewer and editor
+  git-view.tsx        branch and remote pickers, the Changes view, diffs
+  branches-view.tsx   the Branches view
+  history-view.tsx    the History view
+  stash-view.tsx      the Stash view
+  actions.ts          what the Files tab's buttons do: file reads and writes
+  git-actions.ts      what the Source Control buttons do, plus the background fetch
+  branch-actions.ts   new, rename, delete and check out remote branches
+  history-actions.ts  history, revert and stash
+  repo.ts             shared git plumbing: running git, errors, reading repo status
+  git.ts              parses git output (no Claude Code calls, so it's easy to test)
+  controls.tsx        shared chip buttons, tabs and divider
+  theme.ts            color tokens
+  *.test.ts(x)        tests
+types/index.d.ts      the shape of the session state
 ```
 
 ## Development

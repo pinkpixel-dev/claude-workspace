@@ -7,11 +7,16 @@ import {
   isUnstaged,
   limitDiff,
   parseBranches,
+  parseLog,
+  parseRemoteBranches,
   parseRemotes,
+  parseStashes,
   parseStatus,
   pickRemote,
   pullArgs,
   pushArgs,
+  remoteOnly,
+  shortAge,
 } from './git'
 
 describe('parseStatus', () => {
@@ -116,4 +121,46 @@ test('push and pull name the remote unless it is the upstream one', async () => 
   expect(pushArgs({ ...repo, remote: 'fork' })).toEqual(['push', 'fork', 'dev'])
   expect(pullArgs({ ...repo, remote: 'fork' })).toEqual(['pull', '--no-edit', 'fork', 'dev'])
   expect(pushArgs({ ...repo, upstream: undefined, remote: 'fork' })).toEqual(['push', '-u', 'fork', 'dev'])
+})
+
+test('shortAge squeezes git\'s relative dates', async () => {
+  expect(shortAge('5 minutes ago')).toBe('5m')
+  expect(shortAge('2 hours ago')).toBe('2h')
+  expect(shortAge('3 months ago')).toBe('3mo')
+  expect(shortAge('1 year, 2 months ago')).toBe('1y')
+  expect(shortAge('in the future')).toBe('in the future')
+})
+
+test('parseLog reads commits, keeps tabs in subjects and spots merges', async () => {
+  const out = [
+    'aaa111\taaa\tp1 p2\t2 hours ago\tMerge branch dev',
+    'bbb222\tbbb\tp1\t3 days ago\tfix:\ttabbed subject',
+    'ccc333\tccc\t\t1 week ago\tfirst commit',
+    '',
+  ].join('\n')
+
+  expect(parseLog(out)).toEqual([
+    { sha: 'aaa111', short: 'aaa', subject: 'Merge branch dev', age: '2h', isMerge: true },
+    { sha: 'bbb222', short: 'bbb', subject: 'fix:\ttabbed subject', age: '3d', isMerge: false },
+    { sha: 'ccc333', short: 'ccc', subject: 'first commit', age: '1w', isMerge: false },
+  ])
+})
+
+test('parseStashes reads ref, age and message', async () => {
+  expect(parseStashes('stash@{0}\t10 minutes ago\tOn dev: half done\n')).toEqual([
+    { ref: 'stash@{0}', age: '10m', message: 'On dev: half done' },
+  ])
+})
+
+test('remote branches drop HEAD pointers, and remoteOnly hides ones you have', async () => {
+  const remoteBranches = parseRemoteBranches(
+    ['origin/HEAD\trefs/remotes/origin/main', 'origin/main\t', 'origin/feature\t', 'fork/dev\t', ''].join('\n'),
+  )
+  expect(remoteBranches).toEqual(['origin/main', 'origin/feature', 'fork/dev'])
+
+  const branches = [
+    { name: 'main', upstream: 'origin/main', ahead: 0, behind: 0, isGone: false },
+    { name: 'dev', upstream: undefined, ahead: 0, behind: 0, isGone: false },
+  ]
+  expect(remoteOnly({ branches, remoteBranches, remotes: ['origin', 'fork'] })).toEqual(['origin/feature'])
 })

@@ -1,9 +1,11 @@
-// What the Branches view's buttons do: new, rename and delete. Switching
+// What the Branches view's buttons do: new, rename, delete and checking out
+// a remote branch. Switching
 // lives with the other Source Control actions in git-actions.ts.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import type { GitView } from '../types'
+import { closeFile, refreshDir } from './actions'
 import { shortError } from './git'
 import { fail, git, gitOk, run } from './repo'
 import { EMPTY_REPO } from './state'
@@ -11,6 +13,7 @@ import { EMPTY_REPO } from './state'
 const branchFormState = atom({ plugin: 'workspace', key: 'branchForm' } as const, null)
 const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
 const gitViewState = atom({ plugin: 'workspace', key: 'gitView' } as const, 'changes')
+const isEditingState = atom({ plugin: 'workspace', key: 'isEditing' } as const, false)
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
 
 type $ = EngineInterface
@@ -84,5 +87,15 @@ export async function forceDeleteBranch($: $, name: string) {
   await run($, 'Deleting', async () => {
     await gitOk($, ['branch', '-D', name])
     $.ui.toast(`Deleted ${name}`)
+  })
+}
+
+// Makes a local branch that tracks `ref` (like origin/feature) and switches to it.
+export function checkoutRemote($: $, ref: string) {
+  return run($, 'Checking out', async () => {
+    await gitOk($, ['switch', '--track', ref])
+    $.ui.toast(`Switched to ${ref.slice(ref.indexOf('/') + 1)}, tracking ${ref}`)
+    if (!(await read($, isEditingState))) await closeFile($)
+    await refreshDir($)
   })
 }

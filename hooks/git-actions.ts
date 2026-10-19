@@ -17,6 +17,7 @@ import {
   shortError,
 } from './git'
 import { forceDeleteBranch } from './branch-actions'
+import { dropStash, revert } from './history-actions'
 import { confirmed, fail, git, gitOk, refreshRepo, run } from './repo'
 import { EMPTY_REPO, PANE } from './state'
 
@@ -123,6 +124,16 @@ export async function confirmYes($: $) {
       return discardAll($)
     case 'force-delete':
       return forceDeleteBranch($, ask.path ?? '')
+    case 'revert': {
+      const commit = (await read($, repoState)).commits.find(one => one.sha === ask.path)
+      if (commit !== undefined) return revert($, commit)
+      return cancelConfirm($)
+    }
+    case 'drop-stash': {
+      const stash = (await read($, repoState)).stashes.find(one => one.ref === ask.path)
+      if (stash !== undefined) return dropStash($, stash)
+      return cancelConfirm($)
+    }
     case 'discard': {
       const change = (await read($, repoState)).changes.find(one => one.path === ask.path)
       if (change !== undefined) return discard($, change)

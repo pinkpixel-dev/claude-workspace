@@ -1,5 +1,5 @@
 // Pure git helpers: no `$`, so the tests can run them directly.
-import type { Branch, Change, Repo } from '../types'
+import type { Branch, Change, Commit, Repo, Stash } from '../types'
 import { C } from './theme'
 
 export type StatusSummary = {
@@ -81,6 +81,66 @@ export const parseRemotes = (out: string): string[] =>
     .split('\n')
     .map(line => line.trim())
     .filter(line => line !== '')
+
+// Remote branches with the symref beside each, so the remotes' HEAD pointers drop out.
+export const REMOTE_BRANCH_FORMAT = '--format=%(refname:lstrip=2)%09%(symref)'
+
+export const parseRemoteBranches = (out: string): string[] =>
+  out
+    .split('\n')
+    .map(line => line.split('\t'))
+    .filter(([name = '', symref = '']) => name.trim() !== '' && symref.trim() === '')
+    .map(([name = '']) => name.trim())
+
+// Remote branches you don't have locally yet, by name and by tracking.
+export const remoteOnly = (repo: Pick<Repo, 'branches' | 'remoteBranches' | 'remotes'>) =>
+  repo.remoteBranches.filter(ref => {
+    const remote = repo.remotes.find(one => ref.startsWith(`${one}/`))
+    const name = remote === undefined ? ref : ref.slice(remote.length + 1)
+
+    return !repo.branches.some(branch => branch.name === name || branch.upstream === ref)
+  })
+
+// `git log` fields, tab separated with the subject last so a tab inside it survives.
+export const LOG_FORMAT = '--format=%H%x09%h%x09%P%x09%ar%x09%s'
+
+// "2 hours ago" reads as 2h; "1 year, 2 months ago" keeps its first part.
+export const shortAge = (relative: string) => {
+  const match = relative.match(/^(\d+) (second|minute|hour|day|week|month|year)/)
+  if (!match) return relative
+
+  const unit = { second: 's', minute: 'm', hour: 'h', day: 'd', week: 'w', month: 'mo', year: 'y' }[match[2] ?? 'second']
+
+  return `${match[1]}${unit}`
+}
+
+export const parseLog = (out: string): Commit[] =>
+  out
+    .split('\n')
+    .filter(line => line.trim() !== '')
+    .map(line => {
+      const [sha = '', short = '', parents = '', age = '', ...subject] = line.split('\t')
+
+      return {
+        sha,
+        short,
+        subject: subject.join('\t'),
+        age: shortAge(age),
+        isMerge: parents.trim().split(' ').length > 1,
+      }
+    })
+
+export const STASH_FORMAT = '--format=%gd%x09%cr%x09%gs'
+
+export const parseStashes = (out: string): Stash[] =>
+  out
+    .split('\n')
+    .filter(line => line.trim() !== '')
+    .map(line => {
+      const [ref = '', age = '', ...message] = line.split('\t')
+
+      return { ref, age: shortAge(age), message: message.join('\t') }
+    })
 
 // Which remote the branch's upstream lives on, if it has one.
 export const upstreamRemote = (repo: Pick<Repo, 'upstream' | 'remotes'>) =>

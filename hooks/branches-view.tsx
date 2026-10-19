@@ -4,6 +4,7 @@ import type { EngineInterface } from 'claude-code'
 import type { Branch, Repo } from '../types'
 import {
   cancelBranchForm,
+  checkoutRemote,
   deleteBranch,
   saveBranchForm,
   setBranchName,
@@ -11,6 +12,7 @@ import {
   startRename,
 } from './branch-actions'
 import { chip } from './controls'
+import { remoteOnly } from './git'
 import { switchBranch } from './git-actions'
 import { C } from './theme'
 import type { UI } from './ui'
@@ -60,6 +62,7 @@ export async function drawBranches($: $, ui: UI, repo: Repo, status: JSX.Element
   const { Box, Input, Text } = ui
   const form = await read($, branchFormState)
   const isNew = form?.kind === 'new'
+  const remote = remoteOnly(repo)
 
   return (
     <Box key="branches" flexDirection="column" gap={1}>
@@ -88,6 +91,21 @@ export async function drawBranches($: $, ui: UI, repo: Repo, status: JSX.Element
         {repo.branches.length === 0 && <Text color={C.faint}>No branches yet. Make a first commit.</Text>}
         {repo.branches.map(branch => drawBranchRow($, ui, branch, branch.name === repo.branch))}
       </Box>
+
+      {remote.length > 0 && (
+        <Box flexDirection="column">
+          <Box gap={1}>
+            <Text color={C.text} bold>Remote branches</Text>
+            <Text color={C.faint}>{String(remote.length)}</Text>
+          </Box>
+          {remote.map(ref => (
+            <Box key={`remote-branch:${ref}`} justifyContent="space-between" gap={1} hover={{ backgroundColor: C.hover }}>
+              <Text color={C.muted} wrap="truncate-end">{`  ${ref}`}</Text>
+              {chip(ui, { key: `branch-checkout:${ref}`, label: 'Check out', kind: 'quiet', onPress: () => checkoutRemote($, ref) })}
+            </Box>
+          ))}
+        </Box>
+      )}
     </Box>
   )
 }
