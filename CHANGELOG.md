@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.0 - Unreleased
+## 0.10.0 - October 19, 2026
 
 ### 🌿 Branches
 
@@ -11,7 +11,7 @@
 
 ### 🏷️ Tags
 
-- A new **Tags** view lists tags newest first, with **+ New tag** (a message makes it annotated), **Push all**, and **Check out** (detached), **Push** and **Delete** per tag.
+- A new **Tags** view lists tags newest first, with **+ New tag** (a message makes it annotated), **Push all**, and **Check out** (detached), **Push**, **Delete** and **Delete remote** (behind a confirm) per tag.
 
 ### 🕘 History
 
@@ -26,6 +26,10 @@
 
 - **Unstage all** on the Staged Changes section.
 - The Stash view gets **Stash all**, **Stash staged** and **Drop all**.
+
+### 🧪 Tests
+
+- 14 new tests for the branch, tag, remote, sync, undo and stash tools. The suite is at 120 tests.
 
 ## 0.9.0 - October 19, 2026
 
