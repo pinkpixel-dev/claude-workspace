@@ -15,7 +15,7 @@
 
 ### 📊 Stats bar
 
-- A row under the tabs shows 5 hour and 7 day usage with reset times, context fill, model and effort, and session cost. Pieces drop off from the right when the pane is narrow.
+- A strip at the top of the pane shows 5 hour and 7 day usage with reset times, context fill, model and effort, and session cost. Pieces drop off from the right when the pane is narrow.
 - **Stats** in the title row hides or shows it, and the choice is kept across sessions.
 
 ### 🐛 Fixes

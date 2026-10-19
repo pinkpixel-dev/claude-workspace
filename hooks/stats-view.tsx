@@ -1,4 +1,4 @@
-// The stats bar under the tabs: usage windows, context, model and cost, from
+// The stats strip at the top of the pane: usage windows, context, model and cost, from
 // the same `session.measure` figures the status line reads. It can be switched
 // off, and that choice is kept in $.store across sessions.
 import { atom, read, update } from 'claude-code'
@@ -61,7 +61,7 @@ export function drawStats(ui: UI, stats: Stats, width: number) {
   const shown = fitSegments(statSegments(stats, Date.now()), width)
 
   return (
-    <Box key="stats" gap={0} paddingX={2} marginBottom={1} height={1} overflow="hidden">
+    <Box key="stats" gap={0} backgroundColor={C.card} paddingX={2} marginTop={1} height={1} overflow="hidden">
       {shown.length === 0 && <Text color={C.faint}>No usage reported yet.</Text>}
       {shown.flatMap((segment, i) => [
         i > 0 && <Text key={`stat-sep:${segment.key}`} color={C.line}>{SEPARATOR}</Text>,

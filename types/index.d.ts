@@ -201,7 +201,7 @@ declare module 'claude-code' {
       snapshots: Snapshot[]
       turnDiff: TurnDiff | null
       stats: Stats
-      // The stats bar under the tabs; the choice is kept in $.store.
+      // The stats strip at the top of the pane; the choice is kept in $.store.
       showStats: boolean
     }
   }

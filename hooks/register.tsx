@@ -114,6 +114,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column" width={width} minHeight={e.props.scroll.bodyRows} backgroundColor={C.bg} paddingX={1}>
+        {showStats && drawStats(ui, await read($, statsState), width - 6)}
         <Box justifyContent="space-between" gap={1} paddingTop={1} paddingX={1}>
           <Text color={C.text} bold>Workspace</Text>
           <Box gap={1} flexShrink={1}>
@@ -134,7 +135,6 @@ export const register: Register = on => {
             await refreshGithub($)
           })}
         </Box>
-        {showStats && drawStats(ui, await read($, statsState), width - 6)}
         {body}
       </Box>
     )

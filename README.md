@@ -32,7 +32,7 @@ Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code s
 
 **Stats bar**
 
-- A row under the tabs with your 5 hour and 7 day usage (with reset times), how full the context window is, the model and effort, and what the session has cost so far. It's the same numbers the status line reads
+- A slim strip at the top of the pane with your 5 hour and 7 day usage (with reset times), how full the context window is, the model and effort, and what the session has cost so far. It's the same numbers the status line reads
 - When the pane gets narrow, pieces drop off from the right: cost first, then the model, then context
 - **Stats** in the title row hides it or brings it back. It starts on, and the pane remembers your choice across sessions
 
