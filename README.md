@@ -62,6 +62,12 @@ If you'd rather add the marketplace first and install the plugin as a separate s
 
 In the Claude Code desktop app, where `/plugin` doesn't run: click **+** next to the prompt box, then **Plugins**, **Add marketplace** with `pinkpixel-dev/claude-workspace`, then **Add plugin**.
 
+To update to the latest version later, run this from a shell and then restart Claude Code:
+
+```bash
+claude plugin update workspace@claude-workspace
+```
+
 ## Usage
 
 Open the pane with:

@@ -1,6 +1,6 @@
 {
   "name": "workspace",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A pane with a file browser and editor plus VS Code style source control: stage files or single hunks, commit and amend, history and revert, branches, stash, merge, rebase and conflict resolution",
   "author": { "name": "Pink Pixel", "url": "https://pinkpixel.dev" },
   "types": "./types/index.d.ts"
