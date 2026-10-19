@@ -2,11 +2,11 @@
 
 Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code style source control panel, and a GitHub tab for pull requests and issues. You can browse your project, read and edit files, and do most of your everyday git right there: stage whole files or single hunks, commit, push and pull, look back through history, manage branches and stashes, and merge or rebase with a real conflict view, all without leaving Claude Code.
 
-I made it because I kept jumping out to my editor just to check what changed or to make a quick commit. Now that stuff lives right next to the conversation.
-
 | Files | Viewing a file | Source Control |
 | :---: | :---: | :---: |
-| <img src="screenshots/file-list.png" width="260" alt="The Files tab listing a project's folders and files with their sizes"> | <img src="screenshots/file-view.png" width="260" alt="A Rust file open in the viewer with syntax highlighting and line numbers"> | <img src="screenshots/git.png" width="260" alt="The Source Control tab with the branch picker, Fetch, Pull and Push, and the Changes, History, Branches and Stash views"> |
+| <img src="screenshots/file-list.png" width="260" alt="The Files tab listing a project's folders and files with their sizes"> | <img src="screenshots/file-view.png" width="260" alt="A Rust file open in the viewer with syntax highlighting and line numbers"> | <img src="screenshots/source-control.png" width="260" alt="The Source Control tab with the branch picker, Fetch, Pull and Push, and the Changes, History, Branches and Stash views"> |
+| **History** | **Branches** | **GitHub** |
+| <img src="screenshots/history.png" width="260" alt="The History view listing recent commits with their age, short hash and a Revert button"> | <img src="screenshots/branches.png" width="260" alt="The Branches view with Merge and Rebase, local branches with Switch, Rename and Delete, and remote branches with Check out"> | <img src="screenshots/github.png" width="260" alt="The GitHub tab listing a repo's open issues with their author, age and @ buttons"> |
 
 ## Features
 
