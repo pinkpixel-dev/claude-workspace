@@ -9,6 +9,7 @@ import { confirmed, fail, failedStep, git, gitOk, refreshRepo, run } from './rep
 import { EMPTY_REPO, HISTORY_PAGE } from './state'
 
 const commitDiffState = atom({ plugin: 'workspace', key: 'commitDiff' } as const, null)
+const hasImagesState = atom({ plugin: 'workspace', key: 'hasImages' } as const, false)
 const historyLimitState = atom({ plugin: 'workspace', key: 'historyLimit' } as const, HISTORY_PAGE)
 const messageState = atom({ plugin: 'workspace', key: 'message' } as const, '')
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
@@ -102,4 +103,23 @@ export async function dropStash($: $, stash: Stash) {
     await gitOk($, ['stash', 'drop', stash.ref])
     $.ui.toast(`Dropped ${stash.ref}`)
   })
+}
+
+// Graph
+
+// Terminals that draw kitty-protocol pictures. CLAUDE_WORKSPACE_GRAPH set to
+// `image` or `text` overrides the guess, for a terminal it gets wrong.
+export async function detectImages($: $) {
+  const lower = (value: string | undefined) => (value ?? '').toLowerCase()
+  const quiet = () => undefined
+  const [forced, term, program, kitty] = (await Promise.all([
+    $.env.get('CLAUDE_WORKSPACE_GRAPH').catch(quiet),
+    $.env.get('TERM').catch(quiet),
+    $.env.get('TERM_PROGRAM').catch(quiet),
+    $.env.get('KITTY_WINDOW_ID').catch(quiet),
+  ])).map(lower)
+  const guess = term === 'xterm-kitty' || term === 'xterm-ghostty' || program === 'ghostty' || kitty !== ''
+  const hasImages = forced === 'image' ? true : forced === 'text' ? false : guess
+
+  await update($, hasImagesState, () => hasImages)
 }

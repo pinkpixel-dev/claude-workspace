@@ -67,7 +67,8 @@ test('source control lists staged and unstaged changes', async ($, on) => {
 
   expect(await ui.find({ key: 'tab-git', text: 'Source Control 2' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Staged Changes' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '↑1 ↓0' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '↑ 1' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '↓ 0' })).toBeDefined()
   expect(await ui.find({ key: 'unstage:src/app.ts' })).toBeDefined()
   expect(await ui.find({ key: 'stage:README.md' })).toBeDefined()
 })

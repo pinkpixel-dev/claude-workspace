@@ -12,9 +12,9 @@ Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code s
 
 **Files tab**
 
-- Browse the session's working directory, with folders listed first and file sizes on the right
+- Browse the session's working directory, with folders listed first and file sizes on the right. Each file gets a small glyph for its kind, and the path at the top is clickable crumbs so you can jump back up
 - Git status right in the list: changed files get their letter (M, A, D, U, R, or `!` for a conflict) in the same colors Source Control uses, and a folder gets a `●` when something inside it changed
-- See what Claude is looking at. A file gets `◆` when Claude reads it and `✎` when Claude edits it, and the row lights up while the tool is running. A strip at the top lists everything Claude touched this turn, even in folders you aren't looking at, and you can click a name to open it. The marks stay until you send your next prompt
+- See what Claude is looking at. A file gets `◆` when Claude reads it and `✎` when Claude edits it, and the row lights up while the tool is running. A timeline card at the top lists everything Claude touched this turn, even in folders you aren't looking at, and you can click a name to open it. The marks stay until you send your next prompt
 - `@` on any file or folder (and in the file viewer's header) drops `@path` into your prompt box at the cursor, so you can point Claude at it without typing the path
 - Open a file to read it with syntax highlighting and line numbers
 - Click **Edit** to change it in place, then **Save** (or press Enter) to write it back to disk
@@ -23,16 +23,17 @@ Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code s
 **Source Control tab**
 
 - Staged and unstaged changes, colored the way VS Code does it (added, modified, deleted, renamed). Click the `▾` next to a section to fold it shut when the list gets long
-- Click a file to see its diff, and use `+` and `−` to stage or unstage it. Inside the diff, each hunk gets its own **Stage hunk** or **Unstage hunk** button
+- Click a file to see its diff, and use `+` and `−` to stage or unstage it. The file lights up for a moment in its new section. Inside the diff, each hunk has a header with its line range and counts, plus its own **+ Stage** or **− Unstage** button
+- A summary row counts your changed files by kind, with a bar showing how they split
 - **Stage all** for everything at once
 - `↺` on a file throws away its changes, and **Discard all** does the whole list. Both ask first
 - A commit message box with a **Commit** button (Enter commits too)
 - **Amend** to fold staged changes into your last commit, and **Commit all** to stage everything and commit in one go
-- **Fetch**, **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch
+- **Fetch**, **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch. Whichever of Pull or Push you need right now is the highlighted one
 - A quiet fetch every 3 minutes while the pane is showing, so the ahead/behind counts stay current
 - A branch picker that switches branches for you
 - A **Branches** view listing your local branches with what each one tracks, plus **+ New branch**, **Rename** and **Delete**. Branches that only exist on a remote show up underneath with a **Check out** button
-- A **History** view with the last 50 commits on your branch (**Load more** for older ones). Click one to see its diff, or **Revert** it
+- A **History** view with the last 50 commits on your branch (**Load more** for older ones) and a branch graph beside them. Click one to see its diff, or **Revert** it. A little bar chart at the top shows commits per day for the last two weeks
 - **Stash** in the Changes view sets your work aside, and the **Stash** view has **Apply**, **Pop** and **Drop** for each entry
 - **Merge** and **Rebase** at the top of the Branches view, with any local or remote branch as the source
 - When a merge, rebase, revert or cherry-pick stops on conflicts, a banner shows up with **Continue** and **Abort**, and the conflicted files get their own **Merge Changes** section with **Ours**, **Theirs** and **Resolved**. This works for ones you started from a terminal too
@@ -43,12 +44,22 @@ Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code s
 **GitHub tab**
 
 - Open pull requests and issues for the repo, up to 50 of each, with who last touched them and how long ago. Drafts get a dimmer dot
+- Pull requests show their CI result (`✓`, `✗`, `●` pending) and review status (`✓` approved, `±` changes requested, `○` review required), and a card above the list adds those up across all open PRs
 - Click one to read it right in the pane: its state, author, branches, review status, a quick count of passing and failing checks, labels, the description and the comments
 - `@` on any row (and in the detail header) drops a short reference like `PR #42 "Fix the thing" (https://github.com/...)` into your prompt box at the cursor. Claude can then pull the full thread or diff with `gh` itself, so your prompt doesn't fill up with a whole conversation
 - **Open** in the detail view takes you to it on GitHub, and `↻` reloads the lists
 - The lists refresh after each Claude turn while the tab is showing, so a PR Claude just opened shows up on its own
 
 The pane draws its own dark theme, so it looks the same no matter which Claude Code theme you use.
+
+### The History graph
+
+In kitty and Ghostty the graph is drawn as a real picture, with smooth curves where branches split and merge. Everywhere else you get the same graph in Unicode box characters. The pane guesses which one to use from your terminal's environment (`TERM`, `TERM_PROGRAM` and `KITTY_WINDOW_ID`). If it guesses wrong, set `CLAUDE_WORKSPACE_GRAPH` before starting Claude Code:
+
+```bash
+CLAUDE_WORKSPACE_GRAPH=text claude    # always use the Unicode graph
+CLAUDE_WORKSPACE_GRAPH=image claude   # always draw the picture
+```
 
 ## Installation
 
@@ -127,6 +138,8 @@ A few things worth knowing:
 - **The background fetch is silent.** If it fails (no network, a key that needs a passphrase), it just skips that round. Hit **Fetch** to see the actual error.
 - **Mobile isn't supported.** The pane needs text inputs, which the mobile app doesn't have.
 - The pane opens at any width when you run `/workspace`, but it's way nicer with a wide terminal.
+- **The History graph only follows your current branch.** It reads the same `git log` as the list, so it shows merges into your branch but not other branches' tips.
+- **The picture graph needs kitty-style image support.** I haven't tried it inside tmux, so it might not draw there even in kitty. Use `CLAUDE_WORKSPACE_GRAPH=text` if you see a blank column.
 
 The Claude Code mod API is still early access. I built this on Claude Code 2.1.303, so a future release could change something the mod relies on.
 
@@ -142,7 +155,7 @@ hooks/
   diff-view.tsx       a file's diff, split into hunks
   merge-view.tsx      the operation banner, Merge Changes and the Merge/Rebase row
   branches-view.tsx   the Branches view
-  history-view.tsx    the History view
+  history-view.tsx    the History view, its graph and the activity chart
   stash-view.tsx      the Stash view
   actions.ts          what the Files tab's buttons do: file reads and writes, and @ mentions
   activity.ts         watches Claude's file tools for the read and edit marks
@@ -153,7 +166,12 @@ hooks/
   merge-actions.ts    merge, rebase, Continue/Abort and resolving conflicts
   repo.ts             shared git plumbing: running git, errors, reading repo status
   git.ts              parses git output (no Claude Code calls, so it's easy to test)
-  controls.tsx        shared chip buttons, tabs, section headers, frames and divider
+  graph.ts            lays out the History graph and its Unicode cells (no Claude Code calls)
+  graph-image.ts      draws the graph as RGBA pixels for kitty and Ghostty
+  chart.ts            the commit-activity chart's data and Raster cells
+  icons.ts            file-kind glyphs
+  base64.ts           base64 for Raster cells and Image bytes
+  controls.tsx        shared chips, tabs, section headers, frames, cards, badges, bars and divider
   theme.ts            color tokens
   *.test.ts(x)        tests
 types/index.d.ts      the shape of the session state

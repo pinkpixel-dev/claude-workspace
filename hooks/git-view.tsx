@@ -11,6 +11,7 @@ import {
   discard,
   discardAll,
   fetchRemote,
+  flash,
   initRepo,
   pull,
   push,
@@ -26,17 +27,19 @@ import { drawDiff } from './diff-view'
 import { closeCommit, stashChanges } from './history-actions'
 import { drawHistory } from './history-view'
 import { drawStash } from './stash-view'
-import { chip, panel, sectionHeader, segments } from './controls'
+import { badge, bar, card, chip, divider, panel, sectionHeader, segments } from './controls'
 import { colorOf, isConflicted, isStaged, isUnstaged, isUntracked, letterOf } from './git'
 import { drawConflicts, drawOperationBanner } from './merge-view'
 import { refreshRepo, selectRemote, showDiff } from './repo'
 import { EMPTY_REPO } from './state'
-import { C } from './theme'
+import { fileIcon } from './icons'
+import { C, tint } from './theme'
 import type { UI } from './ui'
 
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
 const commitDiffState = atom({ plugin: 'workspace', key: 'commitDiff' } as const, null)
 const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
+const flashState = atom({ plugin: 'workspace', key: 'flash' } as const, null)
 const foldedState = atom({ plugin: 'workspace', key: 'folded' } as const, [])
 const diffState = atom({ plugin: 'workspace', key: 'diff' } as const, null)
 const gitViewState = atom({ plugin: 'workspace', key: 'gitView' } as const, 'changes')
@@ -46,22 +49,33 @@ const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO
 
 type $ = EngineInterface
 
-function drawRow($: $, ui: UI, change: Change, staged: boolean) {
+function drawRow($: $, ui: UI, change: Change, staged: boolean, flashed: string | null) {
   const { Box, Button, Text } = ui
   const letter = letterOf(staged ? change.index : change.work)
   const group = staged ? 'staged' : 'work'
   const cut = change.path.lastIndexOf('/')
   const name = change.path.slice(cut + 1)
   const folder = cut < 0 ? '' : change.path.slice(0, cut)
+  const tone = colorOf(letter)
+  const isLit = flashed === `${group}:${change.path}`
 
   return (
-    <Box key={`${group}:${change.path}`} justifyContent="space-between" gap={1} hover={{ backgroundColor: C.hover }}>
-      <Button key={`diff:${group}:${change.path}`} plain onPress={() => showDiff($, change, staged)}>
-        <Text color={colorOf(letter)} bold>{`  ${letter}  `}</Text>
-        <Text color={C.text}>{name}</Text>
-        <Text color={C.faint}>{folder ? `  ${folder}` : ''}</Text>
-      </Button>
-      <Box gap={1}>
+    <Box
+      key={`${group}:${change.path}`}
+      justifyContent="space-between"
+      gap={1}
+      backgroundColor={isLit ? tint(tone, 0.2) : undefined}
+      hover={{ backgroundColor: C.hover }}
+    >
+      <Box flexShrink={1} height={1} overflow="hidden">
+        <Button key={`diff:${group}:${change.path}`} plain onPress={() => showDiff($, change, staged)}>
+          <Text color={tone}>{`${fileIcon(name)} `}</Text>
+          <Text color={C.text}>{name}</Text>
+          <Text color={C.faint}>{folder ? `  ${folder}` : ''}</Text>
+        </Button>
+      </Box>
+      <Box gap={1} flexShrink={0}>
+        <Text color={tone} bold>{letter}</Text>
         {!staged && chip(ui, {
           key: `discard:${change.path}`,
           label: '↺',
@@ -72,14 +86,17 @@ function drawRow($: $, ui: UI, change: Change, staged: boolean) {
           key: `${staged ? 'unstage' : 'stage'}:${change.path}`,
           label: staged ? '−' : '+',
           kind: 'row',
-          onPress: () => (staged ? unstage($, change.path) : stage($, change.path)),
+          onPress: async () => {
+            await (staged ? unstage($, change.path) : stage($, change.path))
+            await flash($, `${staged ? 'work' : 'staged'}:${change.path}`)
+          },
         })}
       </Box>
     </Box>
   )
 }
 
-function drawSection($: $, ui: UI, title: string, changes: Change[], staged: boolean, isOpen: boolean) {
+function drawSection($: $, ui: UI, title: string, changes: Change[], staged: boolean, isOpen: boolean, flashed: string | null) {
   const { Box, Text } = ui
   const key = staged ? 'staged' : 'work'
 
@@ -99,12 +116,12 @@ function drawSection($: $, ui: UI, title: string, changes: Change[], staged: boo
         }),
       })}
       {isOpen && changes.length === 0 && <Text color={C.faint}>{'  Working tree clean.'}</Text>}
-      {isOpen && changes.map(change => drawRow($, ui, change, staged))}
+      {isOpen && changes.map(change => drawRow($, ui, change, staged, flashed))}
     </Box>
   )
 }
 
-export async function drawGit($: $, ui: UI) {
+export async function drawGit($: $, ui: UI, width: number) {
   const { Box, Code, Select, Text } = ui
   const repo = await read($, repoState)
 
@@ -132,18 +149,25 @@ export async function drawGit($: $, ui: UI) {
     : [repo.branch || 'HEAD', ...repo.branches.map(one => one.name)]
   const isRisky = confirm !== null && (confirm.action.startsWith('discard') || confirm.action === 'force-delete')
 
-  // The confirm row, busy label and notice, drawn where each view wants them.
+  // The confirm card, busy label and notice, drawn where each view wants them.
   const status = confirm === null && busy === null && notice === null ? null : (
     <Box key="status" flexDirection="column" gap={1}>
       {confirm !== null && (
-        <Box gap={1} flexWrap="wrap">
-          <Text color={isRisky ? C.deleted : C.modified}>{confirm.question}</Text>
-          {chip(ui, { key: 'confirm-yes', label: confirm.yes, kind: 'primary', onPress: () => confirmYes($) })}
-          {chip(ui, { key: 'confirm-no', label: 'Cancel', onPress: () => cancelConfirm($) })}
+        <Box key="confirm" flexDirection="column" borderStyle="round" borderColor={isRisky ? C.deleted : C.modified} paddingX={1}>
+          <Box gap={1}>
+            <Text color={isRisky ? C.deleted : C.modified} bold>{isRisky ? '!' : '?'}</Text>
+            <Text color={C.text}>{confirm.question}</Text>
+          </Box>
+          <Box gap={1} marginTop={1}>
+            {chip(ui, { key: 'confirm-yes', label: confirm.yes, kind: isRisky ? 'danger' : 'primary', onPress: () => confirmYes($) })}
+            {chip(ui, { key: 'confirm-no', label: 'Cancel', onPress: () => cancelConfirm($) })}
+          </Box>
         </Box>
       )}
       {busy !== null && <Text color={C.busy}>{`${busy}...`}</Text>}
-      {notice !== null && <Text color={notice.kind === 'error' ? C.deleted : C.added}>{notice.text}</Text>}
+      {notice !== null && (
+        <Text color={notice.kind === 'error' ? C.deleted : C.added}>{`${notice.kind === 'error' ? '✗' : '✓'} ${notice.text}`}</Text>
+      )}
     </Box>
   )
 
@@ -174,8 +198,8 @@ export async function drawGit($: $, ui: UI) {
   const view = await read($, gitViewState)
   return (
     <Box flexDirection="column" gap={1}>
-      {panel(ui, 'sync', (
-        <Box justifyContent="space-between" gap={1} flexWrap="wrap">
+      {card(ui, 'sync', [
+        <Box key="sync-branch" justifyContent="space-between" gap={1} flexWrap="wrap">
           <Box gap={1}>
             <Text color={C.accent}>●</Text>
             <Select
@@ -192,16 +216,19 @@ export async function drawGit($: $, ui: UI) {
                 onSelect={name => selectRemote($, name)}
               />
             )}
-            <Text color={repo.ahead + repo.behind > 0 ? C.busy : C.faint}>{`↑${repo.ahead} ↓${repo.behind}`}</Text>
           </Box>
           <Box gap={1}>
-            {chip(ui, { key: 'fetch', label: 'Fetch', onPress: () => fetchRemote($) })}
-            {chip(ui, { key: 'pull', label: 'Pull', onPress: () => pull($) })}
-            {chip(ui, { key: 'push', label: 'Push', onPress: () => push($) })}
-            {chip(ui, { key: 'refresh', label: '↻', kind: 'quiet', onPress: () => refreshRepo($) })}
+            <Text color={repo.ahead > 0 ? C.added : C.faint} bold={repo.ahead > 0}>{`↑ ${repo.ahead}`}</Text>
+            <Text color={repo.behind > 0 ? C.modified : C.faint} bold={repo.behind > 0}>{`↓ ${repo.behind}`}</Text>
           </Box>
-        </Box>
-      ))}
+        </Box>,
+        <Box key="sync-actions" gap={1} flexWrap="wrap">
+          {syncChip(ui, 'fetch', 'Fetch', 'Fetching', busy, false, () => fetchRemote($))}
+          {syncChip(ui, 'pull', 'Pull', 'Pulling', busy, repo.behind > 0, () => pull($))}
+          {syncChip(ui, 'push', 'Push ↑', 'Pushing', busy, repo.ahead > 0 && repo.behind === 0, () => push($))}
+          {chip(ui, { key: 'refresh', label: '↻', kind: 'quiet', onPress: () => refreshRepo($) })}
+        </Box>,
+      ], 1)}
 
       {drawOperationBanner($, ui, repo)}
 
@@ -220,47 +247,90 @@ export async function drawGit($: $, ui: UI) {
       {view === 'history' && await drawHistory($, ui, repo, status)}
       {view === 'branches' && await drawBranches($, ui, repo, status)}
       {view === 'stash' && drawStash($, ui, repo, status)}
-      {view === 'changes' && await drawChanges($, ui, repo, status)}
+      {view === 'changes' && await drawChanges($, ui, repo, status, width)}
     </Box>
   )
 }
 
-async function drawChanges($: $, ui: UI, repo: Repo, status: JSX.Element | null) {
-  const { Box, Input } = ui
+// Fetch, Pull and Push: lit as the main action when it's the one to press,
+// shown as running while its step runs, and inert while another one does.
+function syncChip(ui: UI, key: string, label: string, running: string, busy: string | null, isMain: boolean, onPress: () => unknown) {
+  const state = busy === null ? undefined : busy === running ? 'busy' : 'disabled'
+
+  return chip(ui, { key, label: state === 'busy' ? running : label, kind: isMain ? 'primary' : 'secondary', state, onPress })
+}
+
+const SUMMARY = [
+  { key: 'added', letters: ['A', 'U'], sign: '+', color: C.added },
+  { key: 'modified', letters: ['M', 'T'], sign: '~', color: C.modified },
+  { key: 'renamed', letters: ['R', 'C'], sign: '→', color: C.renamed },
+  { key: 'deleted', letters: ['D'], sign: '−', color: C.deleted },
+]
+
+// Changed files by kind: a count per letter and a bar of how they split.
+function drawSummary(ui: UI, changes: Change[], width: number) {
+  const { Box, Text } = ui
+  const letters = changes.map(one => letterOf(one.work !== ' ' ? one.work : one.index))
+  const parts = SUMMARY.map(part => ({ ...part, count: letters.filter(one => part.letters.includes(one)).length }))
+  const files = new Set(changes.map(one => one.path)).size
+
+  return (
+    <Box key="summary" justifyContent="space-between" gap={2}>
+      <Box gap={1} flexShrink={0}>
+        {badge(ui, 'files', files === 1 ? '1 file' : `${files} files`, C.muted)}
+        {parts.filter(part => part.count > 0).map(part => (
+          <Text key={`sum:${part.key}`} color={part.color}>{`${part.sign}${part.count}`}</Text>
+        ))}
+      </Box>
+      {bar(ui, 'changes', parts, Math.min(24, Math.max(0, width - 24)))}
+    </Box>
+  )
+}
+
+async function drawChanges($: $, ui: UI, repo: Repo, status: JSX.Element | null, width: number) {
+  const { Box, Input, Text } = ui
   const message = await read($, messageState)
   const folded = await read($, foldedState)
+  const flashed = await read($, flashState)
   const conflicts = repo.changes.filter(isConflicted)
   const staged = repo.changes.filter(one => !isConflicted(one) && isStaged(one))
   const unstaged = repo.changes.filter(one => !isConflicted(one) && isUnstaged(one))
 
   return (
     <Box key="changes" flexDirection="column" gap={1}>
-      <Box flexDirection="column" gap={1}>
-        {panel(ui, 'message-frame', (
-          <Input
-            key="message"
-            value={message}
-            rows={3}
-            placeholder={`Message (Enter to commit on ${repo.branch})`}
-            submitLabel="commit"
-            onInput={text => setMessage($, text)}
-            onSubmit={() => commit($)}
-          />
-        ), message.trim() === '' ? C.line : C.accent)}
-        <Box gap={1}>
-          {chip(ui, { key: 'commit', label: 'Commit', kind: 'primary', onPress: () => commit($) })}
-          {chip(ui, { key: 'amend', label: 'Amend', onPress: () => amend($) })}
-          {unstaged.length > 0 && chip(ui, { key: 'commit-all', label: 'Commit all', onPress: () => commitAll($) })}
-          {unstaged.length > 0 && chip(ui, { key: 'stage-all', label: 'Stage all', onPress: () => stageAll($) })}
-          {repo.changes.length > 0 && chip(ui, { key: 'stash', label: 'Stash', onPress: () => stashChanges($) })}
-        </Box>
-      </Box>
+      {panel(ui, 'message-frame', [
+        <Input
+          key="message"
+          value={message}
+          rows={3}
+          placeholder={`Message (Enter to commit on ${repo.branch})`}
+          submitLabel="commit"
+          onInput={text => setMessage($, text)}
+          onSubmit={() => commit($)}
+        />,
+        <Box key="message-rule">{divider(ui, width - 4)}</Box>,
+        <Box key="message-footer" justifyContent="space-between" gap={1} flexWrap="wrap">
+          <Text color={C.faint}>{staged.length === 1 ? '1 staged file' : `${staged.length} staged files`}</Text>
+          <Box gap={1} flexWrap="wrap">
+            {repo.changes.length > 0 && chip(ui, { key: 'stash', label: 'Stash', kind: 'quiet', onPress: () => stashChanges($) })}
+            {unstaged.length > 0 && chip(ui, { key: 'stage-all', label: 'Stage all', kind: 'quiet', onPress: () => stageAll($) })}
+            {unstaged.length > 0 && chip(ui, { key: 'commit-all', label: 'Commit all', onPress: () => commitAll($) })}
+            {chip(ui, { key: 'amend', label: 'Amend', onPress: () => amend($) })}
+            {chip(ui, { key: 'commit', label: 'Commit →', kind: 'primary', onPress: () => commit($) })}
+          </Box>
+        </Box>,
+      ], message.trim() === '' ? C.line : C.accent)}
 
       {status}
 
+      {repo.changes.length > 0 && drawSummary(ui, repo.changes, width)}
+
       {drawConflicts($, ui, conflicts)}
-      {staged.length > 0 && drawSection($, ui, 'Staged Changes', staged, true, !folded.includes('staged'))}
-      {drawSection($, ui, 'Changes', unstaged, false, !folded.includes('work'))}
+      {card(ui, 'change-lists', [
+        staged.length > 0 && drawSection($, ui, 'Staged Changes', staged, true, !folded.includes('staged'), flashed),
+        staged.length > 0 && <Box key="lists-rule">{divider(ui, width - 2)}</Box>,
+        drawSection($, ui, 'Changes', unstaged, false, !folded.includes('work'), flashed),
+      ])}
     </Box>
   )
 }

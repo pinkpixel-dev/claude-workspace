@@ -1,8 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import { cancelEdit, closeFile, goUp, mention, openEntry, openPath, save, startEdit } from './actions'
-import { chip } from './controls'
+import { cancelEdit, closeFile, goUp, mention, openDir, openEntry, openPath, save, startEdit } from './actions'
+import { card, chip } from './controls'
+import { DIR_ICON, fileIcon } from './icons'
 import { EMPTY_REPO } from './state'
 import { C, formatSize } from './theme'
 import { letterAt, markOf, toneOf, treeStatus } from './tree'
@@ -76,27 +77,51 @@ export async function drawFiles($: EngineInterface, ui: UI, bodyRows: number) {
   const recent = [...activity].reverse()
   const join = (name: string) => (where ? `${where}/${name}` : name)
 
+  const crumbs = where === '' ? [] : where.split('/')
+
   return (
     <Box flexDirection="column">
       {recent.length > 0 && (
-        <Box gap={1} flexWrap="wrap" marginBottom={1}>
-          <Text color={C.faint}>Claude</Text>
-          {recent.slice(0, STRIP_MAX).map(one => (
-            <Box key={`strip:${one.path}`}>
-              <Button key={`touch:${one.path}`} plain onPress={() => openPath($, one.path)}>
-                <Text color={one.isRunning ? C.busy : C.muted} hover={{ color: C.text }}>
-                  {`${markOf(one.kind)} ${one.path.slice(one.path.lastIndexOf('/') + 1)}`}
-                </Text>
-              </Button>
+        <Box marginBottom={1}>
+          {card(ui, 'strip', (
+            <Box gap={1} flexWrap="wrap">
+              <Text color={C.muted} bold>Claude</Text>
+              {recent.slice(0, STRIP_MAX).flatMap((one, i) => [
+                i > 0 && <Text key={`strip-sep:${one.path}`} color={C.line}>─</Text>,
+                <Box key={`strip:${one.path}`}>
+                  <Button key={`touch:${one.path}`} plain onPress={() => openPath($, one.path)}>
+                    <Text color={one.isRunning ? C.busy : one.kind === 'edit' ? C.modified : C.muted} hover={{ color: C.text }}>
+                      {`${markOf(one.kind)} ${one.path.slice(one.path.lastIndexOf('/') + 1)}`}
+                    </Text>
+                  </Button>
+                </Box>,
+              ])}
+              {recent.length > STRIP_MAX && <Text color={C.faint}>{`+${recent.length - STRIP_MAX}`}</Text>}
             </Box>
           ))}
-          {recent.length > STRIP_MAX && <Text color={C.faint}>{`+${recent.length - STRIP_MAX}`}</Text>}
         </Box>
       )}
       <Box justifyContent="space-between" gap={1} marginBottom={1}>
-        <Box gap={1} flexShrink={1}>
+        <Box gap={1} flexShrink={1} flexWrap="wrap">
           {where !== '' && chip(ui, { key: 'up', label: '‹ Up', onPress: () => goUp($), kind: 'quiet' })}
-          <Text color={C.muted} wrap="truncate-start">{`./${where}`}</Text>
+          <Box key="crumb-root">
+            <Button key="crumb:" plain onPress={() => openDir($, '')}>
+              <Text color={where === '' ? C.text : C.muted} bold={where === ''} hover={{ color: C.text }}>./</Text>
+            </Button>
+          </Box>
+          {crumbs.flatMap((part, i) => {
+            const path = crumbs.slice(0, i + 1).join('/')
+            const isLast = i === crumbs.length - 1
+
+            return [
+              i > 0 && <Text key={`crumb-sep:${path}`} color={C.line}>/</Text>,
+              <Box key={`crumb-box:${path}`}>
+                <Button key={`crumb:${path}`} plain onPress={() => openDir($, path)}>
+                  <Text color={isLast ? C.text : C.muted} bold={isLast} hover={{ color: C.text }}>{part}</Text>
+                </Button>
+              </Box>,
+            ]
+          })}
         </Box>
         <Text color={C.faint}>{`${list.length} items`}</Text>
       </Box>
@@ -109,6 +134,7 @@ export async function drawFiles($: EngineInterface, ui: UI, bodyRows: number) {
           ? activity.find(one => one.path.startsWith(`${path}/`))
           : activity.find(one => one.path === path)
         const isRunning = activity.some(one => one.isRunning && (one.path === path || one.path.startsWith(`${path}/`)))
+        const tone = letter === undefined ? undefined : toneOf(letter)
 
         return (
           <Box
@@ -119,10 +145,12 @@ export async function drawFiles($: EngineInterface, ui: UI, bodyRows: number) {
             hover={{ backgroundColor: C.hover }}
           >
             <Box gap={1} flexShrink={1}>
-              <Button key={`entry:${entry.name}`} plain onPress={() => openEntry($, entry)}>
-                <Text color={isDir ? C.muted : C.faint}>{isDir ? '▸ ' : '· '}</Text>
-                <Text color={letter === undefined ? C.text : toneOf(letter)} bold={isDir}>{entry.name}</Text>
-              </Button>
+              <Box flexShrink={1} height={1} overflow="hidden">
+                <Button key={`entry:${entry.name}`} plain onPress={() => openEntry($, entry)}>
+                  <Text color={tone ?? (isDir ? C.muted : C.faint)}>{`${isDir ? DIR_ICON : fileIcon(entry.name)} `}</Text>
+                  <Text color={tone ?? C.text} bold={isDir}>{entry.name}</Text>
+                </Button>
+              </Box>
               {touch !== undefined && (
                 <Text color={isRunning ? C.busy : C.muted}>{markOf(touch.kind)}</Text>
               )}

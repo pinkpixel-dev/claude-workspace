@@ -9,7 +9,8 @@ import { drawFiles } from './files-view'
 import { drawGit } from './git-view'
 import { refreshGithub } from './github-actions'
 import { drawGithub } from './github-view'
-import { divider, tab as navTab } from './controls'
+import { tab as navTab } from './controls'
+import { detectImages } from './history-actions'
 import { isStaged, isUnstaged } from './git'
 import { C } from './theme'
 import { PANE, EMPTY_REPO } from './state'
@@ -26,6 +27,7 @@ export const register: Register = on => {
       description: 'Open the file browser and source control pane',
     })
     void refreshAll($)
+    void detectImages($)
     $.clock.every(FETCH_EVERY_MS, () => void autoFetch($))
 
     return next(e)
@@ -71,21 +73,26 @@ export const register: Register = on => {
     }
 
     const ui = $.ui.resolve(e)
-    const { Box } = ui
+    const { Box, Text } = ui
     const tab = await read($, tabState)
     const repo = await read($, repoState)
     const count = new Set(repo.changes.filter(one => isStaged(one) || isUnstaged(one)).map(one => one.path)).size
     const width = e.props.bodyColumns
+    const name = repo.root.slice(repo.root.lastIndexOf('/') + 1)
 
     const body = tab === 'files'
       ? await drawFiles($, ui, e.props.scroll.bodyRows)
       : tab === 'git'
-        ? await drawGit($, ui)
-        : await drawGithub($, ui)
+        ? await drawGit($, ui, width - 2)
+        : await drawGithub($, ui, width - 2)
 
     return (
       <Box flexDirection="column" width={width} minHeight={e.props.scroll.bodyRows} backgroundColor={C.bg} paddingX={1}>
-        <Box gap={3} paddingTop={1} paddingLeft={1}>
+        <Box justifyContent="space-between" gap={1} paddingTop={1} paddingX={1}>
+          <Text color={C.text} bold>Workspace</Text>
+          {name !== '' && <Text color={C.faint} wrap="truncate-end">{name}</Text>}
+        </Box>
+        <Box justifyContent="space-between" gap={2} backgroundColor={C.card} paddingX={2} marginY={1}>
           {navTab(ui, 'tab-files', 'Files', tab === 'files', () => update($, tabState, () => 'files' as const))}
           {navTab(ui, 'tab-git', count > 0 ? `Source Control ${count}` : 'Source Control', tab === 'git', async () => {
             await update($, tabState, () => 'git' as const)
@@ -96,7 +103,6 @@ export const register: Register = on => {
             await refreshGithub($)
           })}
         </Box>
-        <Box marginBottom={1}>{divider(ui, width - 2)}</Box>
         {body}
       </Box>
     )

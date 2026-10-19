@@ -2,11 +2,11 @@ import type { On, ProcessRunResult, PromptFillInput } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
-import { ageSince, checksSummary, detailMarkdown, parseDetail, parseItems, referenceText } from './github'
+import { ageSince, checkCounts, checksLabel, checksState, detailMarkdown, parseDetail, parseItems, referenceText } from './github'
 
 // A repo at /repo whose GitHub remote has one open PR, one draft PR and one issue.
 const PULLS = JSON.stringify([
-  { number: 42, title: 'Add the GitHub tab', author: { login: 'sizzlebop' }, updatedAt: '2026-10-16T12:00:00Z', isDraft: false, url: 'https://github.com/pinkpixel-dev/claude-workspace/pull/42', labels: [{ name: 'feature' }] },
+  { number: 42, title: 'Add the GitHub tab', author: { login: 'sizzlebop' }, updatedAt: '2026-10-16T12:00:00Z', isDraft: false, url: 'https://github.com/pinkpixel-dev/claude-workspace/pull/42', labels: [{ name: 'feature' }], reviewDecision: 'CHANGES_REQUESTED', statusCheckRollup: [{ conclusion: 'SUCCESS' }] },
   { number: 41, title: 'WIP: tidy branches', author: { login: 'friend' }, updatedAt: '2026-10-10T12:00:00Z', isDraft: true, url: 'https://github.com/pinkpixel-dev/claude-workspace/pull/41', labels: [] },
 ])
 const ISSUES = JSON.stringify([
@@ -107,7 +107,11 @@ test('gh list output reads into items, and junk reads as none', () => {
     url: 'https://github.com/pinkpixel-dev/claude-workspace/pull/42',
     isDraft: false,
     labels: ['feature'],
+    checks: { passed: 1, failed: 0, pending: 0 },
+    review: 'changes',
   })
+  expect(second?.checks).toBeNull()
+  expect(second?.review).toBe('')
   expect(second?.isDraft).toBe(true)
   expect(parseItems('not json', 'issue', NOW)).toEqual([])
 })
@@ -116,9 +120,16 @@ test('a PR detail sums up branches, review and checks', () => {
   const [item] = parseItems(PULLS, 'pr', NOW)
   const detail = parseDetail(PR_VIEW, item!, NOW)
 
-  expect(detail.meta).toEqual(['open', 'by sizzlebop', 'feature/github-tab → dev', 'approved', 'checks: 1 failing, 1 pending, 1 passed'])
+  expect(detail.meta).toEqual(['by sizzlebop', 'feature/github-tab → dev'])
+  expect(detail.state).toBe('open')
+  expect(detail.review).toBe('approved')
+  expect(detail.checks).toEqual({ passed: 1, failed: 1, pending: 1 })
+  expect(checksLabel(detail.checks!)).toBe('1 failing, 1 pending, 1 passed')
+  expect(checksState(detail.checks)).toBe('failing')
+  expect(checksState({ passed: 2, failed: 0, pending: 1 })).toBe('pending')
+  expect(checksState(null)).toBe('none')
+  expect(checkCounts([])).toBeNull()
   expect(detailMarkdown(detail)).toContain('**friend** · 1d\n\nLooks good!')
-  expect(checksSummary([])).toBe('')
 })
 
 test('the reference names the item and its URL, spaced off the text before it', () => {
@@ -132,7 +143,7 @@ test('the tab lists open pull requests and issues from gh', async ($, on) => {
   const { ran } = fakeGithub(on)
   const ui = await openGithub($)
 
-  expect(ran).toContainEqual(['pr', 'list', '--state', 'open', '--limit', '50', '--json', 'number,title,author,updatedAt,isDraft,url,labels'])
+  expect(ran).toContainEqual(['pr', 'list', '--state', 'open', '--limit', '50', '--json', 'number,title,author,updatedAt,isDraft,url,labels,reviewDecision,statusCheckRollup'])
   expect(await ui.find({ type: 'Text', text: 'pinkpixel-dev/claude-workspace' })).toBeDefined()
   expect(await ui.find({ key: 'gh-view-pulls', text: /Pull requests 2/ })).toBeDefined()
   expect(await ui.find({ key: 'gh-show:pr:42' })).toBeDefined()

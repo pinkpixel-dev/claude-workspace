@@ -144,9 +144,9 @@ test('parseLog reads commits, keeps tabs in subjects and spots merges', async ()
   ].join('\n')
 
   expect(parseLog(out)).toEqual([
-    { sha: 'aaa111', short: 'aaa', subject: 'Merge branch dev', age: '2h', isMerge: true },
-    { sha: 'bbb222', short: 'bbb', subject: 'fix:\ttabbed subject', age: '3d', isMerge: false },
-    { sha: 'ccc333', short: 'ccc', subject: 'first commit', age: '1w', isMerge: false },
+    { sha: 'aaa111', short: 'aaa', subject: 'Merge branch dev', age: '2h', isMerge: true, parents: ['p1', 'p2'] },
+    { sha: 'bbb222', short: 'bbb', subject: 'fix:\ttabbed subject', age: '3d', isMerge: false, parents: ['p1'] },
+    { sha: 'ccc333', short: 'ccc', subject: 'first commit', age: '1w', isMerge: false, parents: [] },
   ])
 })
 

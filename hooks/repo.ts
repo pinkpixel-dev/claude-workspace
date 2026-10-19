@@ -4,6 +4,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, ProcessRunInit, ProcessRunResult } from 'claude-code'
 
 import type { Change, Confirm } from '../types'
+import { ACTIVITY_DAYS, parseCommitDays } from './chart'
 import {
   BRANCH_FORMAT,
   isStaged,
@@ -121,13 +122,16 @@ export async function refreshRepo($: $) {
   const [root = '', gitDir = `${root}/.git`] = top.stdout.trim().split('\n')
   const limit = await read($, historyLimitState)
   // A repo with no commits yet fails `log`, which reads as an empty history.
-  const [status, branches, remotes, remoteBranches, log, stashes] = await Promise.all([
+  const [status, branches, remotes, remoteBranches, log, stashes, recent, now] = await Promise.all([
     git($, ['status', '--porcelain=v1', '-z', '--branch'], { cwd: root }),
     git($, ['branch', BRANCH_FORMAT], { cwd: root }),
     git($, ['remote'], { cwd: root }),
     git($, ['branch', '-r', REMOTE_BRANCH_FORMAT], { cwd: root }),
     git($, ['log', '-n', String(limit), LOG_FORMAT], { cwd: root }),
     git($, ['stash', 'list', STASH_FORMAT], { cwd: root }),
+    // Commit times for the activity chart, read apart from the paged log so it covers the whole window.
+    git($, ['log', `--since=${ACTIVITY_DAYS}.days.ago`, '--format=%ct'], { cwd: root }),
+    $.clock.now().catch(() => null),
   ])
   const summary = parseStatus(status.stdout)
   const remoteNames = parseRemotes(remotes.stdout)
@@ -142,6 +146,7 @@ export async function refreshRepo($: $) {
     remote: pickRemote(remoteNames, saved, summary.upstream),
     remoteBranches: parseRemoteBranches(remoteBranches.stdout),
     commits: log.exitCode === 0 ? parseLog(log.stdout) : [],
+    commitDays: recent.exitCode === 0 && now !== null ? parseCommitDays(recent.stdout, now) : [],
     stashes: parseStashes(stashes.stdout),
     operation,
   }))

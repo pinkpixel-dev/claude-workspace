@@ -120,13 +120,15 @@ export const parseLog = (out: string): Commit[] =>
     .filter(line => line.trim() !== '')
     .map(line => {
       const [sha = '', short = '', parents = '', age = '', ...subject] = line.split('\t')
+      const shas = parents.trim().split(' ').filter(one => one !== '')
 
       return {
         sha,
         short,
         subject: subject.join('\t'),
         age: shortAge(age),
-        isMerge: parents.trim().split(' ').length > 1,
+        isMerge: shas.length > 1,
+        parents: shas,
       }
     })
 
@@ -244,3 +246,19 @@ export const discardArgs = (change: Change) =>
 // First few lines of git's complaint, enough to act on in a small pane.
 export const shortError = (stderr: string, stdout: string) =>
   (stderr.trim() || stdout.trim() || 'git failed').split('\n').slice(0, 4).join('\n')
+
+// A hunk's new-side lines and its counts, for the header the diff view draws over it.
+export const hunkStats = (hunk: string) => {
+  const head = hunk.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@ ?(.*)$/m)
+  const start = Number(head?.[1] ?? 0)
+  const length = Number(head?.[2] ?? 1)
+  const lines = hunk.split('\n').slice(1)
+
+  return {
+    from: start,
+    to: Math.max(start, start + length - 1),
+    context: (head?.[3] ?? '').trim(),
+    added: lines.filter(line => line.startsWith('+')).length,
+    removed: lines.filter(line => line.startsWith('-')).length,
+  }
+}

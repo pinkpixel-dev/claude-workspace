@@ -1,6 +1,6 @@
 // Pure helpers for the GitHub tab: no `$`, so the tests can run them directly.
 // They read what `gh ... --json` prints into the shapes the tab draws.
-import type { GhComment, GhDetail, GhItem } from '../types'
+import type { Checks, GhComment, GhDetail, GhItem, Review } from '../types'
 
 // How many open items each list asks gh for.
 export const LIST_LIMIT = 50
@@ -8,7 +8,7 @@ export const LIST_LIMIT = 50
 // The most characters a detail view draws for the body and comments together.
 export const DETAIL_LIMIT = 60000
 
-export const PR_LIST_FIELDS = 'number,title,author,updatedAt,isDraft,url,labels'
+export const PR_LIST_FIELDS = 'number,title,author,updatedAt,isDraft,url,labels,reviewDecision,statusCheckRollup'
 export const ISSUE_LIST_FIELDS = 'number,title,author,updatedAt,url,labels'
 export const PR_VIEW_FIELDS = 'body,state,headRefName,baseRefName,reviewDecision,statusCheckRollup,comments'
 export const ISSUE_VIEW_FIELDS = 'body,state,comments'
@@ -55,6 +55,8 @@ export const parseItems = (out: string, kind: GhItem['kind'], now: number): GhIt
     url: text(raw.url),
     isDraft: raw.isDraft === true,
     labels: labelsOf(raw.labels),
+    checks: kind === 'pr' ? checkCounts(raw.statusCheckRollup) : null,
+    review: kind === 'pr' ? reviewOf(raw.reviewDecision) : '',
   }))
 }
 
@@ -62,34 +64,47 @@ export const parseItems = (out: string, kind: GhItem['kind'], now: number): GhIt
 const PASSED = ['SUCCESS', 'NEUTRAL', 'SKIPPED']
 const FAILED = ['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE']
 
-export const checksSummary = (rollup: unknown) => {
-  if (!Array.isArray(rollup) || rollup.length === 0) return ''
+export const checkCounts = (rollup: unknown): Checks | null => {
+  if (!Array.isArray(rollup) || rollup.length === 0) return null
 
   const outcomes = rollup.map((check: Raw) => text(check?.conclusion) || text(check?.state))
   const failed = outcomes.filter(one => FAILED.includes(one)).length
   const passed = outcomes.filter(one => PASSED.includes(one)).length
-  const pending = outcomes.length - failed - passed
-  const parts = [failed > 0 ? `${failed} failing` : '', pending > 0 ? `${pending} pending` : '', passed > 0 ? `${passed} passed` : '']
 
-  return `checks: ${parts.filter(part => part !== '').join(', ')}`
+  return { passed, failed, pending: outcomes.length - failed - passed }
 }
 
-const REVIEW: Record<string, string> = {
+// Checks as words, worst first: `1 failing, 1 pending, 1 passed`.
+export const checksLabel = ({ failed, pending, passed }: Checks) =>
+  [failed > 0 ? `${failed} failing` : '', pending > 0 ? `${pending} pending` : '', passed > 0 ? `${passed} passed` : '']
+    .filter(part => part !== '')
+    .join(', ')
+
+// Where a pull request's CI stands as one word, the worst outcome winning.
+export const checksState = (checks: Checks | null) =>
+  checks === null ? 'none' : checks.failed > 0 ? 'failing' : checks.pending > 0 ? 'pending' : 'passing'
+
+const REVIEW: Record<string, Review> = {
   APPROVED: 'approved',
-  CHANGES_REQUESTED: 'changes requested',
-  REVIEW_REQUIRED: 'review required',
+  CHANGES_REQUESTED: 'changes',
+  REVIEW_REQUIRED: 'required',
+}
+
+const reviewOf = (value: unknown): Review => REVIEW[text(value)] ?? ''
+
+export const REVIEW_LABEL: Record<Review, string> = {
+  approved: 'approved',
+  changes: 'changes requested',
+  required: 'review required',
+  '': '',
 }
 
 export const parseDetail = (out: string, item: GhItem, now: number): GhDetail => {
   const raw = (parseJson(out) ?? {}) as Raw
-  const state = text(raw.state).toLowerCase()
   const isPr = item.kind === 'pr'
   const meta = [
-    item.isDraft ? 'draft' : state,
     `by ${item.author}`,
     isPr && raw.headRefName ? `${text(raw.headRefName)} → ${text(raw.baseRefName)}` : '',
-    isPr ? REVIEW[text(raw.reviewDecision)] ?? '' : '',
-    isPr ? checksSummary(raw.statusCheckRollup) : '',
   ].filter(part => part !== '')
 
   const comments: GhComment[] = Array.isArray(raw.comments)
@@ -100,7 +115,15 @@ export const parseDetail = (out: string, item: GhItem, now: number): GhDetail =>
       }))
     : []
 
-  return { item, meta, body: text(raw.body), comments }
+  return {
+    item,
+    meta,
+    state: item.isDraft ? 'draft' : text(raw.state).toLowerCase(),
+    review: isPr ? reviewOf(raw.reviewDecision) : '',
+    checks: isPr ? checkCounts(raw.statusCheckRollup) : null,
+    body: text(raw.body),
+    comments,
+  }
 }
 
 // The body and comments as one markdown block, cut to what a drawing can hold.

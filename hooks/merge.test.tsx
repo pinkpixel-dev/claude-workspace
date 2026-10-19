@@ -176,7 +176,7 @@ test('a file diff splits into hunks that stage one at a time', async ($, on) => 
   const ui = await openView($, 'view-changes')
 
   await ui.press({ key: 'diff:work:src/app.ts' })
-  expect(await ui.find({ type: 'Text', text: 'Hunk 2 of 2' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '2/2' })).toBeDefined()
 
   await ui.press({ key: 'hunk-stage:1' })
 

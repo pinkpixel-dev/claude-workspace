@@ -37,6 +37,8 @@ export type Commit = {
   // How long ago, short form: 5m, 2h, 3d.
   age: string
   isMerge: boolean
+  // Parent shas, first parent first; the History graph draws from them.
+  parents: string[]
 }
 
 // One `git stash list` entry; `ref` is what git calls it, like stash@{0}.
@@ -60,6 +62,8 @@ export type Repo = {
   // Remote branches as `<remote>/<name>`, without the remotes' HEAD pointers.
   remoteBranches: string[]
   commits: Commit[]
+  // Commits per day for the last two weeks, oldest first.
+  commitDays: number[]
   stashes: Stash[]
   operation: Operation | null
 }
@@ -105,12 +109,28 @@ export type GhItem = {
   url: string
   isDraft: boolean
   labels: string[]
+  // Pull requests only: CI results and where review stands; null and '' when there are none.
+  checks: Checks | null
+  review: Review
 }
+
+// How a pull request's check runs and commit statuses came out.
+export type Checks = { passed: number; failed: number; pending: number }
+
+export type Review = 'approved' | 'changes' | 'required' | ''
 
 export type GhComment = { author: string; age: string; body: string }
 
 // A pull request or issue opened from the list; `meta` is its one-line facts.
-export type GhDetail = { item: GhItem; meta: string[]; body: string; comments: GhComment[] }
+export type GhDetail = {
+  item: GhItem
+  meta: string[]
+  state: string
+  review: Review
+  checks: Checks | null
+  body: string
+  comments: GhComment[]
+}
 
 export type Github = {
   isLoading: boolean
@@ -150,6 +170,10 @@ declare module 'claude-code' {
       ghDetail: GhDetail | null
       // The Source Control sections folded shut, by key.
       folded: string[]
+      // The row a stage or unstage just moved, as `staged:path` or `work:path`, lit for a moment.
+      flash: string | null
+      // The terminal draws pictures (kitty, Ghostty), so the History graph can be one.
+      hasImages: boolean
     }
   }
 }

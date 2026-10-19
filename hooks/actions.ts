@@ -75,6 +75,12 @@ export async function openPath($: $, path: string) {
   }
 }
 
+// Jumps straight to a folder, as the Files tab's path crumbs do; '' is the top.
+export async function openDir($: $, path: string) {
+  await update($, dirState, () => path)
+  await refreshDir($)
+}
+
 export async function goUp($: $) {
   await update($, dirState, current => parentOf(current))
   await refreshDir($)

@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.7.0 - In progress
+
+### 🌳 History graph
+
+- History draws a branch graph next to your commits. Each commit sits in a lane, merges fork out to their own colored lane and curve back in, and the main line stays rose.
+- In kitty and Ghostty the graph is a real picture with smooth curves. Every other terminal gets the same graph in Unicode box characters. Set `CLAUDE_WORKSPACE_GRAPH` to `image` or `text` if the guess is wrong for your terminal.
+- Commit rows are two lines now: the subject on top, the short hash and age underneath. The newest commit gets a **HEAD** badge.
+- A small bar chart at the top of History shows how many commits landed each day over the last two weeks.
+
+### 🎨 Look and feel
+
+- The pane has layers now: a darker canvas, raised cards for the branch header, the change lists and the History header, and a raised bar for the top tabs. A **Workspace** title row shows the repo name.
+- The active sub-view sits on a small raised pill.
+- Files and changed files get a glyph for their kind (`<>` for web and TypeScript code, `{}` for config, `¶` for docs, and a few more), colored by their git status.
+- The Files tab path is clickable crumbs, so you can jump straight up to any folder.
+- The Claude strip in Files is a small timeline card, with edits in amber and reads in gray.
+
+### ✨ Source Control
+
+- The branch card shows ahead and behind as separate counts, green when you're ahead and amber when you're behind. **Pull** or **Push** lights up as the main button when it's the one to press.
+- While Fetch, Pull or Push runs, its button reads **Fetching…**, **Pulling…** or **Pushing…** and the other two go inert.
+- A summary row above the lists counts the changed files by kind (`+` added, `~` modified, `→` renamed, `−` deleted) with a bar showing how they split.
+- The commit box has a footer with the staged file count and the commit buttons.
+- A file you stage or unstage lights up for a moment in its new section.
+- Confirm questions get their own framed card with the buttons underneath. A question that throws work away has a red frame and a red yes button.
+- Notices start with `✓` or `✗`, so they don't rely on color alone.
+- Diff hunks have a header with their line range, `+` and `−` counts and the function they're in, with a smaller **+ Stage** or **− Unstage** button.
+
+### 🐙 GitHub
+
+- Pull request rows show CI (`✓` passing, `✗` failing, `●` pending) and review status (`✓` approved, `±` changes requested, `○` review required). This comes from the same `gh pr list` call as before, just with two more fields.
+- A status card above the pull requests counts checks and reviews across all open PRs, with a bar for each.
+- The detail view shows state, review and checks as colored badges.
+
 ## 0.6.0 - October 18, 2026
 
 ### 🎨 Look and feel

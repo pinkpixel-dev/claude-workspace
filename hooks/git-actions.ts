@@ -24,6 +24,7 @@ import { EMPTY_REPO, PANE } from './state'
 
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
 const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
+const flashState = atom({ plugin: 'workspace', key: 'flash' } as const, null)
 const isEditingState = atom({ plugin: 'workspace', key: 'isEditing' } as const, false)
 const messageState = atom({ plugin: 'workspace', key: 'message' } as const, '')
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
@@ -288,4 +289,12 @@ export async function switchBranch($: $, name: string) {
     if (!(await read($, isEditingState))) await closeFile($)
     await refreshDir($)
   })
+}
+
+// Lights the row a stage or unstage just moved, then lets it settle.
+const FLASH_MS = 1200
+
+export async function flash($: $, key: string) {
+  await update($, flashState, () => key)
+  $.clock.after(FLASH_MS, () => void update($, flashState, current => (current === key ? null : current)))
 }

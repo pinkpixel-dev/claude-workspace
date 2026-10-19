@@ -1,6 +1,9 @@
 import type { On, ProcessRunResult } from 'claude-code'
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
+
+// The test runner's timer, for waiting out the refresh session.start fires off.
+declare const setTimeout: (run: () => void, ms: number) => unknown
 
 // A repo on `dev` with three commits (one a merge), one stash, one edited
 // file, and a teammate's branch on origin. Its git calls land in these hooks.
@@ -161,4 +164,52 @@ test('a remote-only branch can be checked out as a tracking branch', async ($, o
   await ui.press({ key: 'branch-checkout:origin/feature' })
 
   expect(ran).toContainEqual(['switch', '--track', 'origin/feature'])
+})
+
+test('history draws a Unicode graph, a HEAD badge and the activity chart', async ($, on) => {
+  mock.clock(on)
+  fakeRepo(on)
+  const ui = await openView($, 'view-history')
+
+  expect(await ui.find({ type: 'Text', text: 'HEAD' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /●/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'bbb · 2h ago' })).toBeDefined()
+  expect(await ui.find({ type: 'Raster', key: 'activity-chart' })).toBeDefined()
+  expect(await ui.find({ type: 'Image' })).toBeUndefined()
+})
+
+// Starts the session in a terminal whose environment reads as `env`, so the
+// pane makes its picture guess the way it does for real.
+const startIn = async ($: Engine, on: On, env: Record<string, string>) => {
+  mock.clock(on)
+  on('env.get', async ($, e) => ({ value: env[e.name] }))
+  on('session.start', async ($, e) => ({ cwd: e.cwd }))
+  on('command.register', async () => ({ value: { command: 'workspace' } }))
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+}
+
+const waitFor = async (check: () => Promise<unknown>) => {
+  for (let i = 0; i < 200 && (await check()) === undefined; i += 1) {
+    await new Promise<void>(resolve => setTimeout(resolve, 5))
+  }
+}
+
+test('in a terminal that draws pictures, the graph is an Image beside the rows', async ($, on) => {
+  fakeRepo(on)
+  await startIn($, on, { TERM: 'xterm-kitty' })
+  const ui = await openView($, 'view-history')
+  await waitFor(() => ui.find({ type: 'Image', key: 'graph:0' }))
+
+  expect(await ui.find({ type: 'Image', key: 'graph:0' })).toBeDefined()
+  expect(await ui.find({ key: 'commit-show:bbb222' })).toBeDefined()
+})
+
+test('CLAUDE_WORKSPACE_GRAPH=text keeps the Unicode graph even in kitty', async ($, on) => {
+  fakeRepo(on)
+  await startIn($, on, { TERM: 'xterm-kitty', CLAUDE_WORKSPACE_GRAPH: 'text' })
+  const ui = await openView($, 'view-history')
+  await waitFor(() => ui.find({ type: 'Image' }))
+
+  expect(await ui.find({ type: 'Image' })).toBeUndefined()
+  expect(await ui.find({ key: 'commit-show:bbb222' })).toBeDefined()
 })
