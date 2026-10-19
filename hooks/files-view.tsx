@@ -2,17 +2,20 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import { cancelEdit, closeFile, goUp, mention, openDir, openEntry, openPath, save, startEdit } from './actions'
+import { confirmCard } from './confirm-view'
 import { card, chip } from './controls'
 import { DIR_ICON, fileIcon } from './icons'
 import { EMPTY_REPO } from './state'
 import { C, formatSize } from './theme'
 import { letterAt, markOf, toneOf, treeStatus } from './tree'
+import { askClaude } from './turn-actions'
 import type { UI } from './ui'
 
 // How many touched files the strip names before it sums up the rest.
 const STRIP_MAX = 6
 
 const activityState = atom({ plugin: 'workspace', key: 'activity' } as const, [])
+const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
 const cwdState = atom({ plugin: 'workspace', key: 'cwd' } as const, '')
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
 const dirState = atom({ plugin: 'workspace', key: 'dir' } as const, '')
@@ -29,6 +32,7 @@ export async function drawFiles($: EngineInterface, ui: UI, bodyRows: number) {
     const isEditing = await read($, isEditingState)
     const draft = await read($, draftState)
     const lines = file.text === '' ? 0 : file.text.split('\n').length
+    const confirm = await read($, confirmState)
 
     return (
       <Box flexDirection="column" gap={1}>
@@ -45,10 +49,12 @@ export async function drawFiles($: EngineInterface, ui: UI, bodyRows: number) {
               kind: 'primary',
               onPress: async () => save($, await read($, draftState)),
             })}
+            {!isEditing && chip(ui, { key: 'explain', label: 'Explain', kind: 'quiet', onPress: () => askClaude($, 'Explain', file.path) })}
             {!isEditing && chip(ui, { key: 'mention-open', label: '@', onPress: () => mention($, file.path) })}
             {!isEditing && !file.readOnlyReason && chip(ui, { key: 'edit', label: 'Edit', onPress: () => startEdit($) })}
           </Box>
         </Box>
+        {confirm?.action === 'overwrite' && confirm.path === file.path && confirmCard($, ui, confirm)}
         {file.readOnlyReason
           ? <Text color={C.modified}>{file.readOnlyReason}</Text>
           : <Text color={C.faint}>{`${lines} lines${isEditing ? ' · Enter saves' : ''}`}</Text>}

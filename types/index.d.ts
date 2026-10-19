@@ -1,4 +1,4 @@
-export type Tab = 'files' | 'git' | 'github'
+export type Tab = 'files' | 'git' | 'turn' | 'github'
 
 export type GitView = 'changes' | 'history' | 'branches' | 'stash'
 
@@ -13,6 +13,27 @@ export type OpenFile = {
 
 // A file Claude read or edited since your last prompt, by its path in the tree.
 export type Touch = { path: string; kind: 'read' | 'edit'; isRunning: boolean }
+
+// A file as it stood before Claude's first edit to it this turn, so the change can be shown and undone.
+// `before` is null for a file Claude created, and for one too large for the tool to hand back.
+// `added` and `removed` count the lines changed since then, as of Claude's last edit to it.
+export type Snapshot = { path: string; before: string | null; isNew: boolean; added: number; removed: number }
+
+// The This Turn tab's open diff: a file's snapshot against what's on disk now.
+export type TurnDiff = { path: string; text: string; added: number; removed: number }
+
+// One usage window, as `session.measure` reports it.
+export type Limit = { percent: number; resetsAt?: string }
+
+// What the stats bar shows; each figure is missing until the engine reports it.
+export type Stats = {
+  fiveHour?: Limit
+  sevenDay?: Limit
+  contextPercent?: number
+  costUsd?: number
+  model?: string
+  effort?: string
+}
 
 export type Change = {
   path: string
@@ -91,6 +112,8 @@ export type ConfirmAction =
   | 'rebase'
   | 'abort'
   | 'resolve'
+  | 'revert-turn'
+  | 'overwrite'
 
 // A question the pane asks before a risky git step; `path` names the file,
 // branch, commit or stash the step is for.
@@ -174,6 +197,12 @@ declare module 'claude-code' {
       flash: string | null
       // The terminal draws pictures (kitty, Ghostty), so the History graph can be one.
       hasImages: boolean
+      // Before-edit copies of the files Claude edited since your last prompt.
+      snapshots: Snapshot[]
+      turnDiff: TurnDiff | null
+      stats: Stats
+      // The stats bar under the tabs; the choice is kept in $.store.
+      showStats: boolean
     }
   }
 }

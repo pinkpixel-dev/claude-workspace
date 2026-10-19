@@ -4,9 +4,9 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { Entry } from '../types'
+import type { Confirm, Entry } from '../types'
 import { CODE_LIMIT } from './git'
-import { fail, refreshRepo } from './repo'
+import { confirmed, fail, refreshRepo } from './repo'
 import { mentionText } from './tree'
 
 const cwdState = atom({ plugin: 'workspace', key: 'cwd' } as const, '')
@@ -103,11 +103,28 @@ export function cancelEdit($: $) {
   return update($, isEditingState, () => false)
 }
 
-export async function save($: $, text: string) {
+// Asks before writing over a file that changed on disk since it was opened,
+// so a save never quietly wipes out an edit Claude made meanwhile.
+export async function save($: $, text: string, isForced = false) {
   const file = await read($, openFileState)
   if (file === null) return
 
   try {
+    if (!isForced) {
+      const disk = await $.fs.read(file.path).catch(() => null)
+      if (typeof disk === 'string' && disk.slice(0, CODE_LIMIT) !== file.text) {
+        const name = file.path.slice(file.path.lastIndexOf('/') + 1)
+        const ask: Confirm = {
+          action: 'overwrite',
+          path: file.path,
+          question: `${name} changed on disk since you opened it. Save over it?`,
+          yes: 'Yes, overwrite',
+        }
+        // The confirm's yes saves the draft, so it has to hold what was submitted.
+        await update($, draftState, () => text)
+        if (!(await confirmed($, ask))) return
+      }
+    }
     await $.fs.write(file.path, text)
     await update($, openFileState, () => ({ ...file, text }))
     await update($, isEditingState, () => false)

@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### ✎ This Turn
+
+- A new **This Turn** tab lists every file Claude edited since your last prompt, with lines added and removed and a **new** badge for files Claude created.
+- Click a file to see its diff against how it looked before Claude's first edit this turn.
+- `↺` puts a file back the way it was before the turn, or deletes it if Claude created it. It asks first.
+
+### 💬 Send to Claude
+
+- **✦ Message** in the commit box drafts a Conventional Commits message from the staged diff with Haiku, ending in a `Co-Authored-By` line for the session's model.
+- **Review** on Source Control diffs and This Turn files, and **Explain** in the file viewer, put a request with the file's `@path` in your prompt box.
+
+### 📊 Stats bar
+
+- A row under the tabs shows 5 hour and 7 day usage with reset times, context fill, model and effort, and session cost. Pieces drop off from the right when the pane is narrow.
+- **Stats** in the title row hides or shows it, and the choice is kept across sessions.
+
+### 🐛 Fixes
+
+- Saving a file that changed on disk since you opened it now asks before writing over it, so an edit Claude made while you were editing doesn't get silently lost.
+
 ## 0.7.0 - October 19, 2026
 
 ### 🌳 History graph

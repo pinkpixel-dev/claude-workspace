@@ -91,3 +91,10 @@ export const mentionText = (path: string, before: string) => {
 
   return `${lead}@${name} `
 }
+
+// A request for Claude about a file, like `Explain @path`, spaced off what the prompt box already holds.
+export const askText = (verb: string, path: string, before: string) => {
+  const lead = before === '' || /\s$/.test(before) ? '' : ' '
+
+  return `${lead}${verb} ${mentionText(path, ' ')}`
+}

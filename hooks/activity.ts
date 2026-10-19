@@ -5,11 +5,15 @@ import type { EngineInterface, ToolCallInput, ToolCallResult } from 'claude-code
 
 import { refreshAll } from './actions'
 import { FILE_TOOLS, treePathOf, withTouch } from './tree'
+import { keepSnapshot } from './turn-actions'
 
 const activityState = atom({ plugin: 'workspace', key: 'activity' } as const, [])
 const cwdState = atom({ plugin: 'workspace', key: 'cwd' } as const, '')
 
 type $ = EngineInterface
+
+// The tools whose results carry the file as it was before the call.
+const SNAPSHOT_TOOLS = new Set(['Edit', 'Write'])
 
 const pathArg = (e: ToolCallInput) => {
   if ('file_path' in e && typeof e.file_path === 'string') return e.file_path
@@ -34,6 +38,9 @@ export async function trackTool($: $, e: ToolCallInput, next: (e: ToolCallInput)
   try {
     const done = await next(e)
     isDone = !('deny' in done && done.deny !== undefined) && done.isError !== true
+    if (isDone && SNAPSHOT_TOOLS.has(e.tool)) {
+      await keepSnapshot($, path, 'result' in done ? done.result : undefined).catch(() => undefined)
+    }
     return done
   } finally {
     // A refused or failed call never touched the file, so a first mark goes away again.

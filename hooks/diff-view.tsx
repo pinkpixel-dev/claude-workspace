@@ -7,6 +7,7 @@ import { applyHunk } from './git-actions'
 import { fileIcon } from './icons'
 import { closeDiff } from './repo'
 import { C } from './theme'
+import { askClaude } from './turn-actions'
 import type { UI } from './ui'
 
 type $ = EngineInterface
@@ -27,7 +28,13 @@ export function drawDiff($: $, ui: UI, diff: Diff, isUntracked: boolean, status:
           <Text color={C.muted}>{fileIcon(name)}</Text>
           <Text color={C.text} bold wrap="truncate-start">{diff.path}</Text>
         </Box>
-        <Box flexShrink={0}>
+        <Box gap={1} flexShrink={0}>
+          {chip(ui, {
+            key: 'diff-review',
+            label: 'Review',
+            kind: 'quiet',
+            onPress: () => askClaude($, diff.isStaged ? 'Review my staged changes to' : 'Review my changes to', diff.path),
+          })}
           {badge(ui, 'diff-side', diff.isStaged ? 'staged' : 'working tree', diff.isStaged ? C.added : C.modified)}
         </Box>
       </Box>

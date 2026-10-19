@@ -4,10 +4,8 @@ import type { EngineInterface } from 'claude-code'
 import type { Change, Repo } from '../types'
 import {
   amend,
-  cancelConfirm,
   commit,
   commitAll,
-  confirmYes,
   discard,
   discardAll,
   fetchRemote,
@@ -30,6 +28,8 @@ import { drawStash } from './stash-view'
 import { badge, bar, card, chip, divider, panel, sectionHeader, segments } from './controls'
 import { colorOf, isConflicted, isStaged, isUnstaged, isUntracked, letterOf } from './git'
 import { drawConflicts, drawOperationBanner } from './merge-view'
+import { drawStatus } from './confirm-view'
+import { draftMessage } from './turn-actions'
 import { refreshRepo, selectRemote, showDiff } from './repo'
 import { EMPTY_REPO } from './state'
 import { fileIcon } from './icons'
@@ -38,7 +38,6 @@ import type { UI } from './ui'
 
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
 const commitDiffState = atom({ plugin: 'workspace', key: 'commitDiff' } as const, null)
-const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
 const flashState = atom({ plugin: 'workspace', key: 'flash' } as const, null)
 const foldedState = atom({ plugin: 'workspace', key: 'folded' } as const, [])
 const diffState = atom({ plugin: 'workspace', key: 'diff' } as const, null)
@@ -142,34 +141,12 @@ export async function drawGit($: $, ui: UI, width: number) {
   }
 
   const busy = await read($, busyState)
-  const notice = await read($, noticeState)
-  const confirm = await read($, confirmState)
   const branchNames = repo.branches.some(one => one.name === repo.branch)
     ? repo.branches.map(one => one.name)
     : [repo.branch || 'HEAD', ...repo.branches.map(one => one.name)]
-  const isRisky = confirm !== null && (confirm.action.startsWith('discard') || confirm.action === 'force-delete')
 
   // The confirm card, busy label and notice, drawn where each view wants them.
-  const status = confirm === null && busy === null && notice === null ? null : (
-    <Box key="status" flexDirection="column" gap={1}>
-      {confirm !== null && (
-        <Box key="confirm" flexDirection="column" borderStyle="round" borderColor={isRisky ? C.deleted : C.modified} paddingX={1}>
-          <Box gap={1}>
-            <Text color={isRisky ? C.deleted : C.modified} bold>{isRisky ? '!' : '?'}</Text>
-            <Text color={C.text}>{confirm.question}</Text>
-          </Box>
-          <Box gap={1} marginTop={1}>
-            {chip(ui, { key: 'confirm-yes', label: confirm.yes, kind: isRisky ? 'danger' : 'primary', onPress: () => confirmYes($) })}
-            {chip(ui, { key: 'confirm-no', label: 'Cancel', onPress: () => cancelConfirm($) })}
-          </Box>
-        </Box>
-      )}
-      {busy !== null && <Text color={C.busy}>{`${busy}...`}</Text>}
-      {notice !== null && (
-        <Text color={notice.kind === 'error' ? C.deleted : C.added}>{`${notice.kind === 'error' ? '✗' : '✓'} ${notice.text}`}</Text>
-      )}
-    </Box>
-  )
+  const status = await drawStatus($, ui)
 
   const diff = await read($, diffState)
   if (diff !== null) {
@@ -289,6 +266,7 @@ function drawSummary(ui: UI, changes: Change[], width: number) {
 
 async function drawChanges($: $, ui: UI, repo: Repo, status: JSX.Element | null, width: number) {
   const { Box, Input, Text } = ui
+  const busy = await read($, busyState)
   const message = await read($, messageState)
   const folded = await read($, foldedState)
   const flashed = await read($, flashState)
@@ -312,6 +290,13 @@ async function drawChanges($: $, ui: UI, repo: Repo, status: JSX.Element | null,
         <Box key="message-footer" justifyContent="space-between" gap={1} flexWrap="wrap">
           <Text color={C.faint}>{staged.length === 1 ? '1 staged file' : `${staged.length} staged files`}</Text>
           <Box gap={1} flexWrap="wrap">
+            {staged.length > 0 && chip(ui, {
+              key: 'draft-message',
+              label: '✦ Message',
+              kind: 'quiet',
+              state: busy === 'Writing message' ? 'busy' : undefined,
+              onPress: () => draftMessage($),
+            })}
             {repo.changes.length > 0 && chip(ui, { key: 'stash', label: 'Stash', kind: 'quiet', onPress: () => stashChanges($) })}
             {unstaged.length > 0 && chip(ui, { key: 'stage-all', label: 'Stage all', kind: 'quiet', onPress: () => stageAll($) })}
             {unstaged.length > 0 && chip(ui, { key: 'commit-all', label: 'Commit all', onPress: () => commitAll($) })}

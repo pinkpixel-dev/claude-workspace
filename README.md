@@ -1,6 +1,6 @@
 # Workspace
 
-Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code style source control panel, and a GitHub tab for pull requests and issues. You can browse your project, read and edit files, and do most of your everyday git right there: stage whole files or single hunks, commit, push and pull, look back through history, manage branches and stashes, and merge or rebase with a real conflict view, all without leaving Claude Code.
+Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code style source control panel, a This Turn tab for what Claude just changed, and a GitHub tab for pull requests and issues. You can browse your project, read and edit files, and do most of your everyday git right there: stage whole files or single hunks, commit, push and pull, look back through history, manage branches and stashes, and merge or rebase with a real conflict view, all without leaving Claude Code.
 
 | Files | Viewing a file | Source Control |
 | :---: | :---: | :---: |
@@ -19,15 +19,32 @@ Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code s
 - Open a file to read it with syntax highlighting and line numbers
 - Click **Edit** to change it in place, then **Save** (or press Enter) to write it back to disk
 - The open file reloads after each Claude turn, so you see edits Claude made
+- If the file changed on disk while you were editing it (say Claude edited it mid-turn), **Save** asks before writing over it instead of quietly wiping out that change
+- **Explain** in the viewer's header puts `Explain @path` in your prompt box, so asking Claude about a file is one click
+
+**This Turn tab**
+
+- Every file Claude edited since your last prompt, with how many lines it added and removed. Files Claude created get a **new** badge
+- Click a file to see its diff against how it looked before Claude's first edit this turn. That's a different view from Source Control's diff, which compares against your last commit
+- `↺` (or **↺ Revert** in the diff) puts the file back the way it was before this turn. For a file Claude created, it deletes the file. Both ask first
+- **Review** puts `Review the changes you made to @path` in your prompt box
+- The tab label counts the edited files, like **This Turn 2**
+
+**Stats bar**
+
+- A row under the tabs with your 5 hour and 7 day usage (with reset times), how full the context window is, the model and effort, and what the session has cost so far. It's the same numbers the status line reads
+- When the pane gets narrow, pieces drop off from the right: cost first, then the model, then context
+- **Stats** in the title row hides it or brings it back. It starts on, and the pane remembers your choice across sessions
 
 **Source Control tab**
 
 - Staged and unstaged changes, colored the way VS Code does it (added, modified, deleted, renamed). Click the `▾` next to a section to fold it shut when the list gets long
-- Click a file to see its diff, and use `+` and `−` to stage or unstage it. The file lights up for a moment in its new section. Inside the diff, each hunk has a header with its line range and counts, plus its own **+ Stage** or **− Unstage** button
+- Click a file to see its diff, and use `+` and `−` to stage or unstage it. The file lights up for a moment in its new section. Inside the diff, each hunk has a header with its line range and counts, plus its own **+ Stage** or **− Unstage** button. **Review** in the diff header asks Claude to look over that file's changes
 - A summary row counts your changed files by kind, with a bar showing how they split
 - **Stage all** for everything at once
 - `↺` on a file throws away its changes, and **Discard all** does the whole list. Both ask first
 - A commit message box with a **Commit** button (Enter commits too)
+- **✦ Message** writes a commit message for you from the staged diff. It shows up once something is staged, and you can edit the message before committing
 - **Amend** to fold staged changes into your last commit, and **Commit all** to stage everything and commit in one go
 - **Fetch**, **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch. Whichever of Pull or Push you need right now is the highlighted one
 - A quiet fetch every 3 minutes while the pane is showing, so the ahead/behind counts stay current
@@ -122,6 +139,10 @@ A few things worth knowing:
 - **Ours** and **Theirs** keep one side's whole file. Heads up: during a rebase git flips these, so **Ours** is the branch you're rebasing onto and **Theirs** is your own commit.
 - **Continue** finishes the merge (or moves the rebase to its next commit) using git's own commit message, since there's no editor to open. It won't run while conflicts are left.
 - **Abort** asks first, then puts everything back to how it was before the merge or rebase started.
+- **✦ Message** sends the staged diff and your last 10 commit subjects to Haiku, which costs a tiny bit of usage. The message follows Conventional Commits and ends with a `Co-Authored-By: Claude <model> <noreply@anthropic.com>` line naming the session's model. Delete that line if you don't want it.
+- **Review** and **Explain** only fill the prompt box. Nothing gets sent until you press Enter, so you can add to the request first.
+- This Turn starts fresh every time you send a prompt (slash commands don't count). Once you send the next prompt, the old before-edit copies are gone, so revert what you want to revert first.
+- Reverting a file Claude created runs `git clean -f -x -q -- <path>`, since Claude Code's file API can't delete files. That means it only works inside a git repository.
 - The GitHub tab is read-only for now. It doesn't comment, review, merge or close anything. If you want one of those, `@` the item and ask Claude.
 - Delete tries the safe `git branch -d` first. If the branch has commits that aren't merged anywhere, git refuses, and the pane offers a **Force delete** (`-D`) behind a confirm. You can't delete the branch you're on.
 
@@ -134,6 +155,7 @@ A few things worth knowing:
 - **Staging goes down to hunks, not lines.** You can't stage a single line, and untracked files only stage as a whole.
 - **The editor is a plain text box.** It's good for quick edits, but there's no highlighting while you type, no multi-cursor and no real undo history.
 - **Big and binary files are view only.** Files over 1 MB don't open, binary files show a note, and very long files show the start and can't be edited.
+- **This Turn only remembers one turn.** The before-edit copies are kept in memory, so they're gone once you send your next prompt or restart Claude Code. Notebook edits show up in the list but have no copy to diff or revert, and neither do files too large for the Edit tool to hand back.
 - **Edits made through Bash don't get a `✎`.** The marks come from Claude's Read, Edit, Write and NotebookEdit tools, so a file changed with something like `sed` only shows up through its git letter after the turn.
 - **The background fetch is silent.** If it fails (no network, a key that needs a passphrase), it just skips that round. Hit **Fetch** to see the actual error.
 - **Mobile isn't supported.** The pane needs text inputs, which the mobile app doesn't have.
@@ -145,7 +167,7 @@ The Claude Code mod API is still early access. I built this on Claude Code 2.1.3
 
 ## How it works
 
-It's a single hooks module. `/workspace` opens a pane, and the pane is drawn from state the mod keeps for the session. Buttons call git through Claude Code's process API (no shell involved) and read or write files through its file API. After each Claude turn, the mod refreshes the file list and git status so the pane stays in sync with whatever Claude just did. It also watches Claude's file tool calls as they happen, which is where the read and edit marks come from.
+It's a single hooks module. `/workspace` opens a pane, and the pane is drawn from state the mod keeps for the session. Buttons call git through Claude Code's process API (no shell involved) and read or write files through its file API. After each Claude turn, the mod refreshes the file list and git status so the pane stays in sync with whatever Claude just did. It also watches Claude's file tool calls as they happen, which is where the read and edit marks come from. Claude's Edit and Write results include the file as it was before the call, so the mod keeps the first one per file each turn. That copy is what This Turn diffs against and reverts to.
 
 ```text
 hooks/
@@ -153,12 +175,16 @@ hooks/
   files-view.tsx      file browser, viewer and editor
   git-view.tsx        branch and remote pickers, sub-tabs, the Changes view
   diff-view.tsx       a file's diff, split into hunks
+  turn-view.tsx       the This Turn tab
+  stats-view.tsx      the stats bar: its usage figures, toggle and row
+  confirm-view.tsx    the confirm card, busy label and notice every tab shares
   merge-view.tsx      the operation banner, Merge Changes and the Merge/Rebase row
   branches-view.tsx   the Branches view
   history-view.tsx    the History view, its graph and the activity chart
   stash-view.tsx      the Stash view
   actions.ts          what the Files tab's buttons do: file reads and writes, and @ mentions
   activity.ts         watches Claude's file tools for the read and edit marks
+  turn-actions.ts     before-edit copies, This Turn diffs and reverts, Review/Explain, and ✦ Message
   tree.ts             maps git and tool paths onto the file list (no Claude Code calls)
   git-actions.ts      what the Source Control buttons do, plus the background fetch
   branch-actions.ts   new, rename, delete and check out remote branches
@@ -169,6 +195,8 @@ hooks/
   graph.ts            lays out the History graph and its Unicode cells (no Claude Code calls)
   graph-image.ts      draws the graph as RGBA pixels for kitty and Ghostty
   chart.ts            the commit-activity chart's data and Raster cells
+  diff.ts             a line diff for This Turn (no Claude Code calls)
+  stats.ts            the stats bar's text and what fits a width (no Claude Code calls)
   icons.ts            file-kind glyphs
   base64.ts           base64 for Raster cells and Image bytes
   controls.tsx        shared chips, tabs, section headers, frames, cards, badges, bars and divider

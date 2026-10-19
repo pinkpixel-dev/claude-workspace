@@ -4,7 +4,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
 import type { Change, Confirm } from '../types'
-import { closeFile, refreshDir, reloadFile } from './actions'
+import { closeFile, refreshDir, reloadFile, save } from './actions'
 import {
   discardArgs,
   isProtected,
@@ -20,10 +20,12 @@ import { forceDeleteBranch } from './branch-actions'
 import { dropStash, revert } from './history-actions'
 import { abortOperation, markResolved, merge, rebase } from './merge-actions'
 import { confirmed, fail, git, gitOk, refreshRepo, run } from './repo'
+import { revertTurn } from './turn-actions'
 import { EMPTY_REPO, PANE } from './state'
 
 const busyState = atom({ plugin: 'workspace', key: 'busy' } as const, null)
 const confirmState = atom({ plugin: 'workspace', key: 'confirm' } as const, null)
+const draftState = atom({ plugin: 'workspace', key: 'draft' } as const, '')
 const flashState = atom({ plugin: 'workspace', key: 'flash' } as const, null)
 const isEditingState = atom({ plugin: 'workspace', key: 'isEditing' } as const, false)
 const messageState = atom({ plugin: 'workspace', key: 'message' } as const, '')
@@ -155,6 +157,11 @@ export async function confirmYes($: $) {
       if (stash !== undefined) return dropStash($, stash)
       return cancelConfirm($)
     }
+    case 'revert-turn':
+      return revertTurn($, ask.path ?? '')
+    case 'overwrite':
+      await cancelConfirm($)
+      return save($, await read($, draftState), true)
     case 'discard': {
       const change = (await read($, repoState)).changes.find(one => one.path === ask.path)
       if (change !== undefined) return discard($, change)
