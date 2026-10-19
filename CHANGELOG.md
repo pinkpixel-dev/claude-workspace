@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 - In progress
+## 0.7.0 - October 19, 2026
 
 ### 🌳 History graph
 
