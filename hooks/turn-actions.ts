@@ -6,7 +6,8 @@ import type { EngineInterface } from 'claude-code'
 
 import type { Confirm } from '../types'
 import { refreshDir, reloadFile } from './actions'
-import { lineDiff } from './diff'
+import { lineDiff, unapplyHunks } from './diff'
+import type { Hunk } from './diff'
 import { limitDiff } from './git'
 import { confirmed, fail, git, gitOk, run } from './repo'
 import { EMPTY_REPO } from './state'
@@ -22,6 +23,9 @@ const turnDiffState = atom({ plugin: 'workspace', key: 'turnDiff' } as const, nu
 
 type $ = EngineInterface
 
+// One file in a Bash result's `bashEditDiff`.
+export type BashFileChange = { filePath: string; hunks: Hunk[]; created?: true; deleted?: true }
+
 const nameOf = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 
 // The file as text, or null when it's gone or binary.
@@ -29,19 +33,37 @@ function readText($: $, path: string) {
   return $.fs.read(path).then(text => (typeof text === 'string' ? text : null), () => null)
 }
 
-// Called after a successful Edit or Write: the first one this turn sets the
-// file's `before`, and every one updates how many lines changed since.
-export async function keepSnapshot($: $, path: string, result: unknown) {
-  const done = (result ?? {}) as { type?: unknown; originalFile?: unknown }
-  const list = await read($, snapshotsState)
-  const kept = list.find(one => one.path === path)
-  const isNew = kept?.isNew ?? done.type === 'create'
-  const before = kept !== undefined ? kept.before : typeof done.originalFile === 'string' ? done.originalFile : null
-  const now = await readText($, path)
-  const counts = now === null || (before === null && !isNew) ? { added: 0, removed: 0 } : lineDiff(path, isNew ? null : before, now)
+// Keeps a file's first `before` this turn, and recounts the lines changed since
+// against the file as it is now (a deleted file counts as empty).
+async function saveSnapshot($: $, path: string, first: { before: string | null; isNew: boolean }) {
+  const kept = (await read($, snapshotsState)).find(one => one.path === path)
+  const { before, isNew } = kept ?? first
+  const now = (await readText($, path)) ?? ''
+  const counts = before === null && !isNew ? { added: 0, removed: 0 } : lineDiff(path, isNew ? null : before, now)
   const snapshot = { path, before, isNew, added: counts.added, removed: counts.removed }
 
   await update($, snapshotsState, current => [...current.filter(one => one.path !== path), snapshot])
+}
+
+// Called after a successful Edit or Write, whose result holds the file as it was.
+export function keepSnapshot($: $, path: string, result: unknown) {
+  const done = (result ?? {}) as { type?: unknown; originalFile?: unknown }
+
+  return saveSnapshot($, path, {
+    before: typeof done.originalFile === 'string' ? done.originalFile : null,
+    isNew: done.type === 'create',
+  })
+}
+
+// Called for each file a Bash command changed: its hunks are undone on the file
+// as it is now. With no hunks to go on, it's listed with no copy.
+export async function keepBashSnapshot($: $, path: string, change: BashFileChange | null) {
+  if (change === null || change.created === true) {
+    return saveSnapshot($, path, { before: null, isNew: change !== null })
+  }
+
+  const now = (await readText($, path)) ?? ''
+  return saveSnapshot($, path, { before: unapplyHunks(now, change.hunks, change.deleted === true), isNew: false })
 }
 
 // A new prompt starts a fresh turn: the copies of the last one go.

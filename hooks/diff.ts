@@ -131,3 +131,32 @@ export function lineDiff(path: string, before: string | null, after: string): Li
 
   return { text: header + hunks.join(''), added, removed }
 }
+
+// One hunk of a tool's structured patch: lines start with ' ', '-' or '+'.
+export type Hunk = { oldStart: number; oldLines: number; newStart: number; newLines: number; lines: string[] }
+
+const NO_NEWLINE = '\\'
+
+// The text before a change, rebuilt by undoing its hunks on the text after it.
+// Null when the hunks don't line up with `after`, as when the file moved on since.
+export function unapplyHunks(after: string, hunks: Hunk[], isDeleted = false): string | null {
+  const lines = after === '' ? [] : after.split('\n')
+  const ordered = [...hunks].sort((a, b) => b.newStart - a.newStart)
+
+  for (const hunk of ordered) {
+    const body = hunk.lines.filter(line => !line.startsWith(NO_NEWLINE))
+    const newSide = body.filter(line => !line.startsWith('-')).map(line => line.slice(1))
+    const oldSide = body.filter(line => !line.startsWith('+')).map(line => line.slice(1))
+    const at = hunk.newLines === 0 ? hunk.newStart : hunk.newStart - 1
+    const current = lines.slice(at, at + newSide.length)
+    if (at < 0 || current.length !== newSide.length || current.some((line, i) => line !== newSide[i])) return null
+
+    lines.splice(at, newSide.length, ...oldSide)
+  }
+
+  // A deleted file's hunks only hold its lines, so its last newline comes back
+  // unless the patch says the file had none.
+  const hadNoNewline = hunks.some(hunk => hunk.lines.some(line => line.startsWith(NO_NEWLINE)))
+
+  return isDeleted && lines.length > 0 && !hadNoNewline ? `${lines.join('\n')}\n` : lines.join('\n')
+}

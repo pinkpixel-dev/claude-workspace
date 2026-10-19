@@ -1,6 +1,14 @@
 # Workspace
 
-Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code style source control panel, a This Turn tab for what Claude just changed, and a GitHub tab for pull requests and issues. You can browse your project, read and edit files, and do most of your everyday git right there: stage whole files or single hunks, commit, push and pull, look back through history, manage branches and stashes, and merge or rebase with a real conflict view, all without leaving Claude Code.
+Workspace is a Claude Code mod that adds a pane for keeping up with what's happening in your project while Claude works. It marks the files Claude reads and edits, shows exactly what Claude changed this turn (with a diff and a way to undo it), keeps your usage limits in view, and can hand work back to Claude with a click. It also does most of your everyday git, plus a read-only look at your GitHub pull requests and issues, so you rarely need to leave Claude Code.
+
+What's in the pane:
+
+- **Files**: browse, read and edit files, with git status and marks for what Claude touched
+- **Source Control**: VS Code style git, from staging single hunks to merges, rebases and conflicts
+- **This Turn**: every file Claude edited since your last prompt, with diffs, Review and revert
+- **GitHub**: open pull requests and issues, with CI and review status
+- **Stats strip**: 5 hour and 7 day usage, context, model and cost along the top
 
 | Files | Viewing a file | Source Control |
 | :---: | :---: | :---: |
@@ -25,6 +33,7 @@ Workspace is a Claude Code mod that adds a pane with a file browser, a VS Code s
 **This Turn tab**
 
 - Every file Claude edited since your last prompt, with how many lines it added and removed. Files Claude created get a **new** badge
+- That includes files changed by Claude's Bash commands, like a `sed -i` or a script that writes files, not just its Edit and Write tools
 - Click a file to see its diff against how it looked before Claude's first edit this turn. That's a different view from Source Control's diff, which compares against your last commit
 - `↺` (or **↺ Revert** in the diff) puts the file back the way it was before this turn. For a file Claude created, it deletes the file. Both ask first
 - **Review** puts `Review the changes you made to @path` in your prompt box
@@ -155,8 +164,8 @@ A few things worth knowing:
 - **Staging goes down to hunks, not lines.** You can't stage a single line, and untracked files only stage as a whole.
 - **The editor is a plain text box.** It's good for quick edits, but there's no highlighting while you type, no multi-cursor and no real undo history.
 - **Big and binary files are view only.** Files over 1 MB don't open, binary files show a note, and very long files show the start and can't be edited.
-- **This Turn only remembers one turn.** The before-edit copies are kept in memory, so they're gone once you send your next prompt or restart Claude Code. Notebook edits show up in the list but have no copy to diff or revert, and neither do files too large for the Edit tool to hand back.
-- **Edits made through Bash don't get a `✎`.** The marks come from Claude's Read, Edit, Write and NotebookEdit tools, so a file changed with something like `sed` only shows up through its git letter after the turn.
+- **This Turn only remembers one turn.** The before-edit copies are kept in memory, so they're gone once you send your next prompt or restart Claude Code. Notebook edits show up in the list but have no copy to diff or revert, and neither do files too large for the Edit tool to hand back, or Bash changes Claude Code didn't make a diff for (it skips some, like big batches of files).
+- **Bash tracking leans on an internal field.** Files changed by Bash come from the per-file diff Claude Code attaches to Bash results, which its own types mark as internal. If a future Claude Code release changes it, Bash edits would quietly stop showing up in This Turn and the `✎` marks, while Edit and Write keep working.
 - **The background fetch is silent.** If it fails (no network, a key that needs a passphrase), it just skips that round. Hit **Fetch** to see the actual error.
 - **Mobile isn't supported.** The pane needs text inputs, which the mobile app doesn't have.
 - The pane opens at any width when you run `/workspace`, but it's way nicer with a wide terminal.
@@ -167,7 +176,7 @@ The Claude Code mod API is still early access. I built this on Claude Code 2.1.3
 
 ## How it works
 
-It's a single hooks module. `/workspace` opens a pane, and the pane is drawn from state the mod keeps for the session. Buttons call git through Claude Code's process API (no shell involved) and read or write files through its file API. After each Claude turn, the mod refreshes the file list and git status so the pane stays in sync with whatever Claude just did. It also watches Claude's file tool calls as they happen, which is where the read and edit marks come from. Claude's Edit and Write results include the file as it was before the call, so the mod keeps the first one per file each turn. That copy is what This Turn diffs against and reverts to.
+It's a single hooks module. `/workspace` opens a pane, and the pane is drawn from state the mod keeps for the session. Buttons call git through Claude Code's process API (no shell involved) and read or write files through its file API. After each Claude turn, the mod refreshes the file list and git status so the pane stays in sync with whatever Claude just did. It also watches Claude's file tool calls as they happen, which is where the read and edit marks come from. Claude's Edit and Write results include the file as it was before the call, and Bash results include a diff of every file the command changed, which the mod undoes on the current file to get the old text back. Either way, it keeps the first copy per file each turn. That copy is what This Turn diffs against and reverts to.
 
 ```text
 hooks/
@@ -176,7 +185,7 @@ hooks/
   git-view.tsx        branch and remote pickers, sub-tabs, the Changes view
   diff-view.tsx       a file's diff, split into hunks
   turn-view.tsx       the This Turn tab
-  stats-view.tsx      the stats bar: its usage figures, toggle and row
+  stats-view.tsx      the stats strip: its usage figures, toggle and row
   confirm-view.tsx    the confirm card, busy label and notice every tab shares
   merge-view.tsx      the operation banner, Merge Changes and the Merge/Rebase row
   branches-view.tsx   the Branches view
@@ -196,7 +205,7 @@ hooks/
   graph-image.ts      draws the graph as RGBA pixels for kitty and Ghostty
   chart.ts            the commit-activity chart's data and Raster cells
   diff.ts             a line diff for This Turn (no Claude Code calls)
-  stats.ts            the stats bar's text and what fits a width (no Claude Code calls)
+  stats.ts            the stats strip's text and what fits a width (no Claude Code calls)
   icons.ts            file-kind glyphs
   base64.ts           base64 for Raster cells and Image bytes
   controls.tsx        shared chips, tabs, section headers, frames, cards, badges, bars and divider

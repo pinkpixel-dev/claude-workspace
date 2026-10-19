@@ -18,6 +18,8 @@ const entry = (name: string) => ({ name, kind: 'file' as const, size: 10, mtimeM
 const fakeWorkspace = (on: On, disk: Map<string, string>) => {
   const ran: string[][] = []
   const fills: PromptFillInput[] = []
+  // What the next Bash call does to the disk, and the result it hands back.
+  const bash: { run: () => unknown }[] = []
   mock.clock(on)
   mock.store(on)
 
@@ -50,6 +52,7 @@ const fakeWorkspace = (on: On, disk: Map<string, string>) => {
     return { isFilled: true, text: e.text, cursor: e.text.length }
   })
   on('tool.call', async ($, e) => {
+    if (e.tool === 'Bash') return { result: { stdout: '', stderr: '', interrupted: false, ...(bash.shift()?.run() as object) } }
     const path = String('file_path' in e ? e.file_path : '').replace('/repo/', '')
     const before = disk.get(path) ?? null
     if (e.tool === 'Write') {
@@ -60,7 +63,7 @@ const fakeWorkspace = (on: On, disk: Map<string, string>) => {
     return { result: { filePath: path, originalFile: before } }
   })
 
-  return { ran, fills }
+  return { ran, fills, bash }
 }
 
 // Waits for `ready` to draw, since session.start's first refresh isn't awaited.
@@ -182,4 +185,53 @@ test('the stats bar starts on and the toggle hides it', async ($, on) => {
   await ui.press({ key: 'stats-toggle' })
 
   expect(await ui.find({ key: 'stats' })).toBeUndefined()
+})
+
+test('files a Bash command changed show up with a diff and can be reverted', async ($, on) => {
+  const disk = new Map([['README.md', '# Title\ntext\n']])
+  const { bash } = fakeWorkspace(on, disk)
+  const ui = await mountPane($)
+
+  bash.push({
+    run: () => {
+      disk.set('README.md', '<p>\n</p>\n# Title\ntext\n')
+      disk.set('notes.md', 'hi\n')
+      return {
+        bashEditDiff: {
+          moreFiles: 0,
+          files: [
+            { filePath: '/repo/README.md', hunks: [{ oldStart: 1, oldLines: 2, newStart: 1, newLines: 4, lines: ['+<p>', '+</p>', ' # Title', ' text'] }] },
+            { filePath: '/repo/notes.md', created: true, hunks: [{ oldStart: 0, oldLines: 0, newStart: 1, newLines: 1, lines: ['+hi'] }] },
+          ],
+        },
+      }
+    },
+  })
+  await $.tool.call({ tool: 'Bash', command: "sed -i '1i <p>' README.md" })
+  await ui.press({ key: 'tab-turn' })
+
+  expect(await ui.find({ key: 'tab-turn', text: /This Turn 2/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: ' new ' })).toBeDefined()
+
+  await ui.press({ key: 'turn:README.md' })
+  expect(await ui.find({ type: 'Code', text: /\+<p>\n\+<\/p>/ })).toBeDefined()
+
+  await ui.press({ key: 'turn-revert' })
+  await ui.press({ key: 'confirm-yes' })
+
+  expect(disk.get('README.md')).toBe('# Title\ntext\n')
+})
+
+test('a Bash change with no hunks is listed without a copy', async ($, on) => {
+  const disk = new Map([['big.bin', 'x']])
+  const { bash } = fakeWorkspace(on, disk)
+  const ui = await mountPane($)
+
+  bash.push({ run: () => ({ bashEditDiff: { moreFiles: 1, files: [], changedFiles: ['/repo/big.bin'] } }) })
+  await $.tool.call({ tool: 'Bash', command: 'make' })
+  await ui.press({ key: 'tab-turn' })
+
+  expect(await ui.find({ key: 'turn:big.bin' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'no copy' })).toBeDefined()
+  expect(await ui.find({ key: 'turn-revert:big.bin' })).toBeUndefined()
 })

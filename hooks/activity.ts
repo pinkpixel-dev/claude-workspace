@@ -1,11 +1,12 @@
-// Watches Claude's file tools so the Files tab can mark what it reads and
-// edits. The marks stay until the next prompt you send.
+// Watches Claude's file tools, and the files its Bash commands change, so the
+// Files tab can mark what it reads and edits. The marks stay until the next prompt you send.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, ToolCallInput, ToolCallResult } from 'claude-code'
 
 import { refreshAll } from './actions'
 import { FILE_TOOLS, treePathOf, withTouch } from './tree'
-import { keepSnapshot } from './turn-actions'
+import { keepBashSnapshot, keepSnapshot } from './turn-actions'
+import type { BashFileChange } from './turn-actions'
 
 const activityState = atom({ plugin: 'workspace', key: 'activity' } as const, [])
 const cwdState = atom({ plugin: 'workspace', key: 'cwd' } as const, '')
@@ -22,8 +23,39 @@ const pathArg = (e: ToolCallInput) => {
   return null
 }
 
+// What a Bash result says it changed. `bashEditDiff` is marked internal in
+// Claude Code's types, so if it goes away Bash edits just stop being tracked.
+type BashEditDiff = { files: BashFileChange[]; changedFiles?: string[] }
+
+// Marks every file a Bash command changed and keeps a copy from before it.
+async function trackBash($: $, e: ToolCallInput, next: (e: ToolCallInput) => Promise<ToolCallResult>) {
+  const done = await next(e)
+  const result = ('result' in done ? done.result : undefined) as { bashEditDiff?: BashEditDiff } | undefined
+  const changes = result?.bashEditDiff
+  if (changes === undefined || !Array.isArray(changes.files)) return done
+
+  try {
+    const cwd = await read($, cwdState)
+    const shown = new Map(changes.files.map(file => [file.filePath, file]))
+    const changed = new Set([...shown.keys(), ...(changes.changedFiles ?? [])])
+    for (const raw of changed) {
+      const path = treePathOf(cwd, raw)
+      if (path === null) continue
+      await update($, activityState, list => withTouch(list, path, 'edit', false))
+      await keepBashSnapshot($, path, shown.get(raw) ?? null)
+    }
+    if (changed.size > 0) void refreshAll($).catch(() => undefined)
+  } catch {
+    // A mark that can't be written is skipped; the command's result still goes back.
+  }
+
+  return done
+}
+
 // Never in the way of the tool: a mark that can't be written is skipped.
 export async function trackTool($: $, e: ToolCallInput, next: (e: ToolCallInput) => Promise<ToolCallResult>) {
+  if (e.tool === 'Bash') return trackBash($, e, next)
+
   const kind = FILE_TOOLS[e.tool]
   const raw = kind === undefined ? null : pathArg(e)
   if (kind === undefined || raw === null) return next(e)

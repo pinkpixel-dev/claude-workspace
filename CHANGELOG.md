@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### ✎ This Turn
+
+- Files Claude changes through Bash (a `sed -i`, a script that writes files) now show up in This Turn with a diff, line counts and revert, and get the `✎` mark in Files. Before, only the Edit and Write tools were tracked.
+
 ## 0.8.0 - October 19, 2026
 
 ### ✎ This Turn

@@ -1,7 +1,7 @@
 {
   "name": "workspace",
   "version": "0.8.0",
-  "description": "A file browser, VS Code style source control and GitHub pane. See git status and what Claude is reading or editing, review or undo what Claude changed this turn, check your usage, @ files, pull requests and issues into your prompt, and stage, commit, branch, stash, merge and resolve conflicts without leaving Claude Code",
+  "description": "A workspace pane for Claude Code: files, a This Turn view of Claude's edits with diff and revert, usage stats, VS Code style source control, and GitHub pull requests and issues.",
   "author": { "name": "Pink Pixel", "url": "https://pinkpixel.dev" },
   "types": "./types/index.d.ts"
 }
