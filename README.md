@@ -13,6 +13,9 @@ I made it because I kept jumping out to my editor just to check what changed or 
 **Files tab**
 
 - Browse the session's working directory, with folders listed first and file sizes on the right
+- Git status right in the list: changed files get their letter (M, A, D, U, R, or `!` for a conflict) in the same colors Source Control uses, and a folder gets a `●` when something inside it changed
+- See what Claude is looking at. A file gets `◆` when Claude reads it and `✎` when Claude edits it, and the row lights up while the tool is running. A strip at the top lists everything Claude touched this turn, even in folders you aren't looking at, and you can click a name to open it. The marks stay until you send your next prompt
+- `@` on any file or folder (and in the file viewer's header) drops `@path` into your prompt box at the cursor, so you can point Claude at it without typing the path
 - Open a file to read it with syntax highlighting and line numbers
 - Click **Edit** to change it in place, then **Save** (or press Enter) to write it back to disk
 - The open file reloads after each Claude turn, so you see edits Claude made
@@ -110,6 +113,7 @@ A few things worth knowing:
 - **Staging goes down to hunks, not lines.** You can't stage a single line, and untracked files only stage as a whole.
 - **The editor is a plain text box.** It's good for quick edits, but there's no highlighting while you type, no multi-cursor and no real undo history.
 - **Big and binary files are view only.** Files over 1 MB don't open, binary files show a note, and very long files show the start and can't be edited.
+- **Edits made through Bash don't get a `✎`.** The marks come from Claude's Read, Edit, Write and NotebookEdit tools, so a file changed with something like `sed` only shows up through its git letter after the turn.
 - **The background fetch is silent.** If it fails (no network, a key that needs a passphrase), it just skips that round. Hit **Fetch** to see the actual error.
 - **Mobile isn't supported.** The pane needs text inputs, which the mobile app doesn't have.
 - The pane opens at any width when you run `/workspace`, but it's way nicer with a wide terminal.
@@ -118,7 +122,7 @@ The Claude Code mod API is still early access. I built this on Claude Code 2.1.3
 
 ## How it works
 
-It's a single hooks module. `/workspace` opens a pane, and the pane is drawn from state the mod keeps for the session. Buttons call git through Claude Code's process API (no shell involved) and read or write files through its file API. After each Claude turn, the mod refreshes the file list and git status so the pane stays in sync with whatever Claude just did.
+It's a single hooks module. `/workspace` opens a pane, and the pane is drawn from state the mod keeps for the session. Buttons call git through Claude Code's process API (no shell involved) and read or write files through its file API. After each Claude turn, the mod refreshes the file list and git status so the pane stays in sync with whatever Claude just did. It also watches Claude's file tool calls as they happen, which is where the read and edit marks come from.
 
 ```text
 hooks/
@@ -130,7 +134,9 @@ hooks/
   branches-view.tsx   the Branches view
   history-view.tsx    the History view
   stash-view.tsx      the Stash view
-  actions.ts          what the Files tab's buttons do: file reads and writes
+  actions.ts          what the Files tab's buttons do: file reads and writes, and @ mentions
+  activity.ts         watches Claude's file tools for the read and edit marks
+  tree.ts             maps git and tool paths onto the file list (no Claude Code calls)
   git-actions.ts      what the Source Control buttons do, plus the background fetch
   branch-actions.ts   new, rename, delete and check out remote branches
   history-actions.ts  history, revert and stash

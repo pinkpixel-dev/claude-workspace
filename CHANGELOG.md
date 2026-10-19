@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### ✨ Files
+
+- The file list shows git status: a colored letter on changed files (`!` for conflicts) and a `●` on folders with changes inside.
+- Files Claude reads get a `◆` and files it edits get a `✎`, with the row highlighted while the tool runs. A strip at the top lists what Claude touched this turn, and clicking a name opens the file. The marks clear when you send your next prompt.
+- `@` buttons on each file and folder, and in the file viewer, put `@path` into the prompt box at the cursor.
+
 ## 0.3.0 - October 18, 2026
 
 ### ✨ Source Control

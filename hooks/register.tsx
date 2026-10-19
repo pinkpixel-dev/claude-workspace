@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import { openPath, refreshAll } from './actions'
+import { clearActivity, trackTool } from './activity'
 import { autoFetch, FETCH_EVERY_MS } from './git-actions'
 import { refreshRepo } from './repo'
 import { drawFiles } from './files-view'
@@ -33,6 +34,16 @@ export const register: Register = on => {
     void refreshAll($)
 
     return { text: opened.isPlaced ? 'Workspace opened.' : 'Workspace will show once there is room.' }
+  })
+
+  // Marks the files Claude reads and edits in the Files tab.
+  on('tool.call', ($, e, next) => trackTool($, e, next))
+
+  // A new prompt starts a fresh set of marks; slash commands keep them.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.command === undefined && e.isMeta !== true) await clearActivity($).catch(() => undefined)
+
+    return next(e)
   })
 
   // Claude may have edited files or made commits during the turn.

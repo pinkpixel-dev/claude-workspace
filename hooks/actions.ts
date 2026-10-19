@@ -7,7 +7,9 @@ import type { EngineInterface } from 'claude-code'
 import type { Entry } from '../types'
 import { CODE_LIMIT } from './git'
 import { fail, refreshRepo } from './repo'
+import { mentionText } from './tree'
 
+const cwdState = atom({ plugin: 'workspace', key: 'cwd' } as const, '')
 const dirState = atom({ plugin: 'workspace', key: 'dir' } as const, '')
 const draftState = atom({ plugin: 'workspace', key: 'draft' } as const, '')
 const entriesState = atom({ plugin: 'workspace', key: 'entries' } as const, [])
@@ -120,6 +122,15 @@ export async function reloadFile($: $) {
   else await closeFile($)
 }
 
+// Puts `@path` in the prompt box at the cursor, so the next prompt names the file.
+export async function mention($: $, path: string) {
+  const box = await $.prompt.read()
+  const filled = await $.prompt.fill({ text: mentionText(path, box.text.slice(0, box.cursor)), mode: 'insert' })
+  if (!filled.isFilled) $.ui.toast(`Couldn't add @${path} to the prompt right now.`)
+}
+
 export async function refreshAll($: $) {
+  const cwd = await $.session.cwd().catch(() => '')
+  await update($, cwdState, () => cwd)
   await Promise.all([refreshDir($), refreshRepo($)])
 }

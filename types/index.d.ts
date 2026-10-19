@@ -11,6 +11,9 @@ export type OpenFile = {
   readOnlyReason?: string
 }
 
+// A file Claude read or edited since your last prompt, by its path in the tree.
+export type Touch = { path: string; kind: 'read' | 'edit'; isRunning: boolean }
+
 export type Change = {
   path: string
   // Porcelain status letters: index (staged) side and worktree side.
@@ -109,6 +112,9 @@ declare module 'claude-code' {
       historyLimit: number
       commitDiff: CommitDiff | null
       mergeSource: string
+      // The session's folder, absolute; '' until it's read.
+      cwd: string
+      activity: Touch[]
     }
   }
 }
