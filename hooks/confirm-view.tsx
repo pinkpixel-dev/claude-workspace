@@ -15,7 +15,17 @@ const noticeState = atom({ plugin: 'workspace', key: 'notice' } as const, null)
 type $ = EngineInterface
 
 // Steps that throw work away get the red card and the danger yes.
-const RISKY = ['discard', 'discard-all', 'force-delete', 'revert-turn', 'overwrite']
+const RISKY = [
+  'discard',
+  'discard-all',
+  'force-delete',
+  'revert-turn',
+  'overwrite',
+  'delete-remote-branch',
+  'force-push',
+  'drop-all-stashes',
+  'remove-remote',
+]
 
 export function confirmCard($: $, ui: UI, confirm: Confirm) {
   const { Box, Text } = ui

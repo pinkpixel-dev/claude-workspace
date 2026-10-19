@@ -4,7 +4,7 @@ import type { EngineInterface } from 'claude-code'
 
 import type { Commit, Confirm, Stash } from '../types'
 import { refreshDir, reloadFile } from './actions'
-import { limitDiff, shortError } from './git'
+import { isPushed, isStaged, limitDiff, shortError } from './git'
 import { confirmed, fail, failedStep, git, gitOk, refreshRepo, run } from './repo'
 import { EMPTY_REPO, HISTORY_PAGE } from './state'
 
@@ -64,6 +64,32 @@ export async function revert($: $, commit: Commit) {
   })
 }
 
+// Takes HEAD back off the branch and leaves its changes staged, with its
+// message back in the box if that's empty. Asks once the commit is pushed.
+export async function undoCommit($: $) {
+  const current = await read($, repoState)
+  const head = current.commits[0]
+  if (head === undefined) return fail($, new Error('No commit to undo.'))
+  if (current.operation !== null) return fail($, new Error('Finish or abort the operation in progress first.'))
+  if (isPushed(current)) {
+    const ask: Confirm = {
+      action: 'undo-commit',
+      path: head.sha,
+      question: `Undo "${head.subject}"? It's pushed already, so pushing after needs a force push.`,
+      yes: 'Yes, undo',
+    }
+    if (!(await confirmed($, ask))) return
+  }
+
+  await run($, 'Undoing', async () => {
+    const message = await gitOk($, ['log', '-1', '--format=%B', head.sha])
+    // A first commit has no parent to reset to, so the branch ref goes instead.
+    await gitOk($, head.parents.length === 0 ? ['update-ref', '-d', 'HEAD'] : ['reset', '--soft', 'HEAD~1'])
+    await update($, messageState, text => (text.trim() === '' ? message.stdout.trim() : text))
+    $.ui.toast(`Undid ${head.short}. Its changes are staged.`)
+  })
+}
+
 // Stash
 
 // Untracked files go in too. A typed commit message names the stash.
@@ -75,6 +101,20 @@ export async function stashChanges($: $) {
     await gitOk($, ['stash', 'push', '-u', ...(text === '' ? [] : ['-m', text])])
     await update($, messageState, () => '')
     $.ui.toast('Stashed your changes')
+    await reloadFile($)
+    await refreshDir($)
+  })
+}
+
+// Only what's staged goes in; the rest stays in the working tree.
+export async function stashStaged($: $) {
+  const text = (await read($, messageState)).trim()
+  if (!(await read($, repoState)).changes.some(isStaged)) return fail($, new Error('Nothing staged to stash.'))
+
+  await run($, 'Stashing', async () => {
+    await gitOk($, ['stash', 'push', '--staged', ...(text === '' ? [] : ['-m', text])])
+    await update($, messageState, () => '')
+    $.ui.toast('Stashed your staged changes')
     await reloadFile($)
     await refreshDir($)
   })
@@ -102,6 +142,20 @@ export async function dropStash($: $, stash: Stash) {
   await run($, 'Dropping', async () => {
     await gitOk($, ['stash', 'drop', stash.ref])
     $.ui.toast(`Dropped ${stash.ref}`)
+  })
+}
+
+export async function dropAllStashes($: $) {
+  const { stashes } = await read($, repoState)
+  if (stashes.length === 0) return
+
+  const count = stashes.length === 1 ? 'the 1 stash' : `all ${stashes.length} stashes`
+  const ask: Confirm = { action: 'drop-all-stashes', question: `Drop ${count}? They're gone for good.`, yes: 'Yes, drop all' }
+  if (!(await confirmed($, ask))) return
+
+  await run($, 'Dropping', async () => {
+    await gitOk($, ['stash', 'clear'])
+    $.ui.toast('Dropped every stash')
   })
 }
 

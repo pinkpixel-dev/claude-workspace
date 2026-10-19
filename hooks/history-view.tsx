@@ -8,7 +8,9 @@ import { badge, card, chip } from './controls'
 import { graphLines, layoutGraph, runsOf } from './graph'
 import type { Cell, Graph } from './graph'
 import { drawGraphPicture } from './graph-image'
-import { loadMore, revert, showCommit } from './history-actions'
+import { branchFromCommit } from './branch-actions'
+import { loadMore, revert, showCommit, undoCommit } from './history-actions'
+import { tagCommit } from './tag-actions'
 import { HISTORY_PAGE } from './state'
 import { C } from './theme'
 import type { UI } from './ui'
@@ -66,6 +68,7 @@ function drawCommitRow($: $, ui: UI, commit: Commit, isHead: boolean, graph: [Ce
           {isHead && <Box flexShrink={0}>{badge(ui, `head:${commit.sha}`, 'HEAD', C.accent)}</Box>}
         </Box>
         <Box gap={1} flexShrink={0}>
+          {isHead && chip(ui, { key: `commit-undo:${commit.sha}`, label: 'Undo', kind: 'row', onPress: () => undoCommit($) })}
           {commit.isMerge
             ? <Text color={C.faint}>{' merge '}</Text>
             : chip(ui, {
@@ -74,6 +77,8 @@ function drawCommitRow($: $, ui: UI, commit: Commit, isHead: boolean, graph: [Ce
               kind: 'row',
               onPress: () => revert($, commit),
             })}
+          {chip(ui, { key: `commit-branch:${commit.sha}`, label: 'Branch', kind: 'row', onPress: () => branchFromCommit($, commit.sha) })}
+          {chip(ui, { key: `commit-tag:${commit.sha}`, label: 'Tag', kind: 'row', onPress: () => tagCommit($, commit.sha) })}
         </Box>
       </Box>
       <Box gap={1}>

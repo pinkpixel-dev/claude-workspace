@@ -1,5 +1,5 @@
 // Pure git helpers: no `$`, so the tests can run them directly.
-import type { Branch, Change, Commit, Operation, Repo, Stash } from '../types'
+import type { Branch, Change, Commit, Operation, Repo, Stash, Tag } from '../types'
 import { C } from './theme'
 
 export type StatusSummary = {
@@ -144,6 +144,27 @@ export const parseStashes = (out: string): Stash[] =>
       return { ref, age: shortAge(age), message: message.join('\t') }
     })
 
+// `git tag` fields, newest first; `creatordate` covers lightweight and annotated tags alike.
+export const TAG_FORMAT = '--format=%(refname:short)%09%(creatordate:relative)%09%(contents:subject)'
+
+export const parseTags = (out: string): Tag[] =>
+  out
+    .split('\n')
+    .filter(line => line.trim() !== '')
+    .map(line => {
+      const [name = '', age = '', ...message] = line.split('\t')
+
+      return { name, age: shortAge(age), message: message.join('\t') }
+    })
+
+// Splits `origin/feature/x` into its remote and the branch name on it.
+export const splitRemoteRef = (ref: string, remotes: string[]) => {
+  const remote = [...remotes].sort((a, b) => b.length - a.length).find(one => ref.startsWith(`${one}/`))
+  if (remote === undefined) return null
+
+  return { remote, name: ref.slice(remote.length + 1) }
+}
+
 // Which remote the branch's upstream lives on, if it has one.
 export const upstreamRemote = (repo: Pick<Repo, 'upstream' | 'remotes'>) =>
   repo.remotes.find(remote => repo.upstream?.startsWith(`${remote}/`))
@@ -163,10 +184,17 @@ export const pushArgs = (repo: Pick<Repo, 'upstream' | 'remotes' | 'remote' | 'b
   return ['push', repo.remote, repo.branch]
 }
 
-export const pullArgs = (repo: Pick<Repo, 'upstream' | 'remotes' | 'remote' | 'branch'>) =>
-  upstreamRemote(repo) === repo.remote
-    ? ['pull', '--no-edit']
-    : ['pull', '--no-edit', repo.remote, repo.branch]
+export const pullArgs = (repo: Pick<Repo, 'upstream' | 'remotes' | 'remote' | 'branch'>, isRebase = false) => {
+  const flags = ['--no-edit', ...(isRebase ? ['--rebase'] : [])]
+
+  return upstreamRemote(repo) === repo.remote
+    ? ['pull', ...flags]
+    : ['pull', ...flags, repo.remote, repo.branch]
+}
+
+// Overwrites the remote branch, but only if nobody pushed to it since the last fetch.
+export const forcePushArgs = (repo: Pick<Repo, 'upstream' | 'remote' | 'branch'>) =>
+  ['push', '--force-with-lease', ...(repo.upstream === undefined ? ['-u'] : []), repo.remote, repo.branch]
 
 export const isStaged = (change: Change) =>
   change.index !== ' ' && change.index !== '?'

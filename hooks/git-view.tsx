@@ -18,6 +18,7 @@ import {
   stageAll,
   switchBranch,
   unstage,
+  unstageAll,
 } from './git-actions'
 import { showView } from './branch-actions'
 import { drawBranches } from './branches-view'
@@ -25,6 +26,8 @@ import { drawDiff } from './diff-view'
 import { closeCommit, stashChanges } from './history-actions'
 import { drawHistory } from './history-view'
 import { drawStash } from './stash-view'
+import { drawTags } from './tags-view'
+import { fetchAll, forcePush, pullRebase, syncBranch, toggleSyncMore } from './sync-actions'
 import { badge, bar, card, chip, divider, panel, sectionHeader, segments } from './controls'
 import { colorOf, isConflicted, isStaged, isUnstaged, isUntracked, letterOf } from './git'
 import { drawConflicts, drawOperationBanner } from './merge-view'
@@ -45,6 +48,7 @@ const gitViewState = atom({ plugin: 'workspace', key: 'gitView' } as const, 'cha
 const messageState = atom({ plugin: 'workspace', key: 'message' } as const, '')
 const noticeState = atom({ plugin: 'workspace', key: 'notice' } as const, null)
 const repoState = atom({ plugin: 'workspace', key: 'repo' } as const, EMPTY_REPO)
+const syncMoreState = atom({ plugin: 'workspace', key: 'syncMore' } as const, false)
 
 type $ = EngineInterface
 
@@ -107,12 +111,9 @@ function drawSection($: $, ui: UI, title: string, changes: Change[], staged: boo
         count: changes.length,
         isOpen,
         onToggle: () => update($, foldedState, list => (list.includes(key) ? list.filter(one => one !== key) : [...list, key])),
-        action: !staged && changes.length > 0 && chip(ui, {
-          key: 'discard-all',
-          label: 'Discard all',
-          kind: 'quiet',
-          onPress: () => discardAll($),
-        }),
+        action: changes.length > 0 && (staged
+          ? chip(ui, { key: 'unstage-all', label: 'Unstage all', kind: 'quiet', onPress: () => unstageAll($) })
+          : chip(ui, { key: 'discard-all', label: 'Discard all', kind: 'quiet', onPress: () => discardAll($) })),
       })}
       {isOpen && changes.length === 0 && <Text color={C.faint}>{'  Working tree clean.'}</Text>}
       {isOpen && changes.map(change => drawRow($, ui, change, staged, flashed))}
@@ -173,6 +174,8 @@ export async function drawGit($: $, ui: UI, width: number) {
   }
 
   const view = await read($, gitViewState)
+  const isSyncOpen = await read($, syncMoreState)
+  const isPublished = repo.upstream !== undefined
   return (
     <Box flexDirection="column" gap={1}>
       {card(ui, 'sync', [
@@ -202,9 +205,18 @@ export async function drawGit($: $, ui: UI, width: number) {
         <Box key="sync-actions" gap={1} flexWrap="wrap">
           {syncChip(ui, 'fetch', 'Fetch', 'Fetching', busy, false, () => fetchRemote($))}
           {syncChip(ui, 'pull', 'Pull', 'Pulling', busy, repo.behind > 0, () => pull($))}
-          {syncChip(ui, 'push', 'Push ↑', 'Pushing', busy, repo.ahead > 0 && repo.behind === 0, () => push($))}
+          {syncChip(ui, 'push', isPublished ? 'Push ↑' : 'Publish ↑', 'Pushing', busy, isPublished ? repo.ahead > 0 && repo.behind === 0 : repo.remote !== '', () => push($))}
           {chip(ui, { key: 'refresh', label: '↻', kind: 'quiet', onPress: () => refreshRepo($) })}
+          {chip(ui, { key: 'sync-more', label: isSyncOpen ? '⋯ Less' : '⋯ More', kind: 'quiet', onPress: () => toggleSyncMore($) })}
         </Box>,
+        isSyncOpen && (
+          <Box key="sync-more-actions" gap={1} flexWrap="wrap">
+            {syncChip(ui, 'pull-rebase', 'Pull (rebase)', 'Pulling', busy, false, () => pullRebase($))}
+            {syncChip(ui, 'sync', 'Sync ⇅', 'Syncing', busy, false, () => syncBranch($))}
+            {syncChip(ui, 'fetch-all', 'Fetch all', 'Fetching', busy, false, () => fetchAll($))}
+            {chip(ui, { key: 'force-push', label: 'Force push', kind: 'quiet', state: busy === null ? undefined : 'disabled', onPress: () => forcePush($) })}
+          </Box>
+        ),
       ], 1)}
 
       {drawOperationBanner($, ui, repo)}
@@ -213,6 +225,12 @@ export async function drawGit($: $, ui: UI, width: number) {
         { key: 'view-changes', label: 'Changes', isActive: view === 'changes', onPress: () => showView($, 'changes') },
         { key: 'view-history', label: 'History', isActive: view === 'history', onPress: () => showView($, 'history') },
         { key: 'view-branches', label: `Branches ${repo.branches.length}`, isActive: view === 'branches', onPress: () => showView($, 'branches') },
+        {
+          key: 'view-tags',
+          label: repo.tags.length > 0 ? `Tags ${repo.tags.length}` : 'Tags',
+          isActive: view === 'tags',
+          onPress: () => showView($, 'tags'),
+        },
         {
           key: 'view-stash',
           label: repo.stashes.length > 0 ? `Stash ${repo.stashes.length}` : 'Stash',
@@ -223,6 +241,7 @@ export async function drawGit($: $, ui: UI, width: number) {
 
       {view === 'history' && await drawHistory($, ui, repo, status)}
       {view === 'branches' && await drawBranches($, ui, repo, status)}
+      {view === 'tags' && await drawTags($, ui, repo, status)}
       {view === 'stash' && drawStash($, ui, repo, status)}
       {view === 'changes' && await drawChanges($, ui, repo, status, width)}
     </Box>

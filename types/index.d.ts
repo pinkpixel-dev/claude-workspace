@@ -1,6 +1,6 @@
 export type Tab = 'files' | 'git' | 'turn' | 'github'
 
-export type GitView = 'changes' | 'history' | 'branches' | 'stash'
+export type GitView = 'changes' | 'history' | 'branches' | 'tags' | 'stash'
 
 export type Entry = { name: string; kind: 'file' | 'dir' | 'other'; size: number }
 
@@ -62,6 +62,9 @@ export type Commit = {
   parents: string[]
 }
 
+// One tag, newest first; `message` is an annotated tag's message, else its commit's subject.
+export type Tag = { name: string; age: string; message: string }
+
 // One `git stash list` entry; `ref` is what git calls it, like stash@{0}.
 export type Stash = { ref: string; age: string; message: string }
 
@@ -86,6 +89,7 @@ export type Repo = {
   // Commits per day for the last two weeks, oldest first.
   commitDays: number[]
   stashes: Stash[]
+  tags: Tag[]
   operation: Operation | null
 }
 
@@ -94,7 +98,14 @@ export type Diff = { path: string; isStaged: boolean; text: string }
 export type CommitDiff = { commit: Commit; text: string }
 
 // The Branches view's name box, for a new branch or renaming `from`.
-export type BranchForm = { kind: 'new' | 'rename'; from?: string; text: string }
+// `base` is what a new branch starts from; missing means where you are.
+export type BranchForm = { kind: 'new' | 'rename'; from?: string; base?: string; text: string }
+
+// The Tags view's form: a name, an optional message (which makes it annotated), and what it points at.
+export type TagForm = { text: string; message: string; base: string }
+
+// The Branches view's Add remote form.
+export type RemoteForm = { name: string; url: string }
 
 export type Notice = { kind: 'ok' | 'error'; text: string }
 
@@ -114,6 +125,12 @@ export type ConfirmAction =
   | 'resolve'
   | 'revert-turn'
   | 'overwrite'
+  | 'delete-remote-branch'
+  | 'force-push'
+  | 'sync'
+  | 'undo-commit'
+  | 'drop-all-stashes'
+  | 'remove-remote'
 
 // A question the pane asks before a risky git step; `path` names the file,
 // branch, commit or stash the step is for.
@@ -182,6 +199,10 @@ declare module 'claude-code' {
       confirm: Confirm | null
       gitView: GitView
       branchForm: BranchForm | null
+      tagForm: TagForm | null
+      remoteForm: RemoteForm | null
+      // The sync card's second row: Pull (rebase), Sync, Fetch all, Force push.
+      syncMore: boolean
       historyLimit: number
       commitDiff: CommitDiff | null
       mergeSource: string

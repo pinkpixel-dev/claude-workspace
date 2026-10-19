@@ -16,10 +16,12 @@ import {
   pushArgs,
   shortError,
 } from './git'
-import { forceDeleteBranch } from './branch-actions'
-import { dropStash, revert } from './history-actions'
+import { deleteRemoteBranch, forceDeleteBranch } from './branch-actions'
+import { dropAllStashes, dropStash, revert, undoCommit } from './history-actions'
 import { abortOperation, markResolved, merge, rebase } from './merge-actions'
+import { removeRemote } from './remote-actions'
 import { confirmed, fail, git, gitOk, refreshRepo, run } from './repo'
+import { forcePush, syncBranch } from './sync-actions'
 import { revertTurn } from './turn-actions'
 import { EMPTY_REPO, PANE } from './state'
 
@@ -71,6 +73,14 @@ export function unstage($: $, path: string) {
     // `restore --staged` needs a first commit; `rm --cached` covers a fresh repo.
     await gitOk($, ['restore', '--staged', '--', path])
       .catch(() => gitOk($, ['rm', '--cached', '-r', '-q', '--', path]))
+  })
+}
+
+// Same fallback as unstage, for every staged file at once.
+export function unstageAll($: $) {
+  return run($, 'Unstaging', async () => {
+    await gitOk($, ['restore', '--staged', '--', '.'])
+      .catch(() => gitOk($, ['rm', '--cached', '-r', '-q', '--', '.']))
   })
 }
 
@@ -162,6 +172,18 @@ export async function confirmYes($: $) {
     case 'overwrite':
       await cancelConfirm($)
       return save($, await read($, draftState), true)
+    case 'delete-remote-branch':
+      return deleteRemoteBranch($, ask.path ?? '')
+    case 'force-push':
+      return forcePush($)
+    case 'sync':
+      return syncBranch($)
+    case 'undo-commit':
+      return undoCommit($)
+    case 'drop-all-stashes':
+      return dropAllStashes($)
+    case 'remove-remote':
+      return removeRemote($, ask.path ?? '')
     case 'discard': {
       const change = (await read($, repoState)).changes.find(one => one.path === ask.path)
       if (change !== undefined) return discard($, change)

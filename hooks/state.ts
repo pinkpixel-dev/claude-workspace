@@ -19,6 +19,7 @@ export const EMPTY_REPO: Repo = {
   commits: [],
   commitDays: [],
   stashes: [],
+  tags: [],
   operation: null,
 }
 

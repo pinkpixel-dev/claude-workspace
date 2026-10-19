@@ -2,7 +2,8 @@ import type { EngineInterface } from 'claude-code'
 
 import type { Repo, Stash } from '../types'
 import { chip } from './controls'
-import { applyStash, dropStash } from './history-actions'
+import { isStaged } from './git'
+import { applyStash, dropAllStashes, dropStash, stashChanges, stashStaged } from './history-actions'
 import { C } from './theme'
 import type { UI } from './ui'
 
@@ -32,6 +33,11 @@ export function drawStash($: $, ui: UI, repo: Repo, status: JSX.Element | null) 
 
   return (
     <Box key="stash" flexDirection="column" gap={1}>
+      <Box gap={1} flexWrap="wrap">
+        {repo.changes.length > 0 && chip(ui, { key: 'stash-all', label: 'Stash all', onPress: () => stashChanges($) })}
+        {repo.changes.some(isStaged) && chip(ui, { key: 'stash-staged', label: 'Stash staged', onPress: () => stashStaged($) })}
+        {repo.stashes.length > 1 && chip(ui, { key: 'stash-drop-all', label: 'Drop all', kind: 'quiet', onPress: () => dropAllStashes($) })}
+      </Box>
       {status}
       <Box flexDirection="column">
         {repo.stashes.length === 0 && <Text color={C.faint}>Nothing stashed. Use Stash in Changes to set work aside.</Text>}

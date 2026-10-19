@@ -68,17 +68,20 @@ What's in the pane:
 - Staged and unstaged changes, colored the way VS Code does it (added, modified, deleted, renamed). Click the `▾` next to a section to fold it shut when the list gets long
 - Click a file to see its diff, and use `+` and `−` to stage or unstage it. The file lights up for a moment in its new section. Inside the diff, each hunk has a header with its line range and counts, plus its own **+ Stage** or **− Unstage** button. **Review** in the diff header asks Claude to look over that file's changes
 - A summary row counts your changed files by kind, with a bar showing how they split
-- **Stage all** for everything at once
+- **Stage all** for everything at once, and **Unstage all** on the staged section to undo that
 - `↺` on a file throws away its changes, and **Discard all** does the whole list. Both ask first
 - A commit message box with a **Commit** button (Enter commits too)
 - **✦ Message** writes a commit message for you from the staged diff. It shows up once something is staged, and you can edit the message before committing
 - **Amend** to fold staged changes into your last commit, and **Commit all** to stage everything and commit in one go
-- **Fetch**, **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch. Whichever of Pull or Push you need right now is the highlighted one
+- **Fetch**, **Pull**, **Push** and a refresh button, plus ahead/behind counts for your branch. Whichever of Pull or Push you need right now is the highlighted one. A branch with no upstream yet gets **Publish** instead of Push
+- **⋯ More** opens a second row with **Pull (rebase)**, **Sync** (pull, then push), **Fetch all** (every remote, pruning deleted branches) and **Force push**
 - A quiet fetch every 3 minutes while the pane is showing, so the ahead/behind counts stay current
 - A branch picker that switches branches for you
-- A **Branches** view listing your local branches with what each one tracks, plus **+ New branch**, **Rename** and **Delete**. Branches that only exist on a remote show up underneath with a **Check out** button
-- A **History** view with the last 50 commits on your branch (**Load more** for older ones) and a branch graph beside them. Click one to see its diff, or **Revert** it. A little bar chart at the top shows commits per day for the last two weeks
-- **Stash** in the Changes view sets your work aside, and the **Stash** view has **Apply**, **Pop** and **Drop** for each entry
+- A **Branches** view listing your local branches with what each one tracks, plus **+ New branch**, **Rename** and **Delete**. A new branch can start from where you are or from any branch, remote branch or tag. Remote branches show up underneath with **Delete**, plus **Check out** on the ones you don't have locally yet
+- A **Remotes** section at the bottom of Branches to add or remove remotes
+- A **Tags** view listing your tags, newest first, with **+ New tag** (add a message to make it annotated), **Push all**, and **Check out**, **Push** and **Delete** on each tag
+- A **History** view with the last 50 commits on your branch (**Load more** for older ones) and a branch graph beside them. Click one to see its diff, **Revert** it, or start a **Branch** or **Tag** from it. The top commit also gets **Undo**. A little bar chart at the top shows commits per day for the last two weeks
+- **Stash** in the Changes view sets your work aside. The **Stash** view has **Stash all**, **Stash staged** and **Drop all** at the top, and **Apply**, **Pop** and **Drop** for each entry
 - **Merge** and **Rebase** at the top of the Branches view, with any local or remote branch as the source
 - When a merge, rebase, revert or cherry-pick stops on conflicts, a banner shows up with **Continue** and **Abort**, and the conflicted files get their own **Merge Changes** section with **Ours**, **Theirs** and **Resolved**. This works for ones you started from a terminal too
 - A remote picker when the repo has more than one remote. Push, Pull and Fetch use it, and the pane remembers your pick for that repo
@@ -153,13 +156,19 @@ A few things worth knowing:
 - In the editor, Enter saves. You get a new line the same way you do in the Claude Code prompt box.
 - Commit only commits what's staged. If nothing is staged, the pane tells you instead of guessing. Use **Commit all** if you want everything in.
 - Discarding an untracked file deletes it. It was never in git, so there's no getting it back.
-- Amend with an empty message box keeps the old commit message. Type one to replace it. If the commit is already pushed, the pane warns you first, since pushing it again needs a force push (which the pane doesn't do).
+- Amend with an empty message box keeps the old commit message. Type one to replace it. If the commit is already pushed, the pane warns you first, since pushing it again needs a force push.
 - If your branch has no upstream yet, Push runs `git push -u <remote> <branch>` for you.
 - Pull runs `git pull --no-edit`, so a merge never stops to open an editor. If you picked a remote other than the one your branch tracks, Push and Pull name that remote and branch directly.
-- New branches start from wherever you are, and the pane switches you onto them.
+- **Pull (rebase)** adds `--rebase`. If it stops on conflicts, they show up in Merge Changes like any other rebase. **Sync** pulls and then pushes, and asks first on `main` or `master`.
+- **Force push** uses `--force-with-lease`, so git refuses if someone else pushed since your last fetch. It always asks first.
+- New branches start from wherever you are unless you pick something else in the **from** picker, and the pane switches you onto them. Starting from a remote branch makes the new branch track it.
+- **Undo** on the top commit runs `git reset --soft HEAD~1`, so its changes land back in Staged Changes and its message goes back in the commit box (unless you'd already typed something there). If the commit is pushed, it asks first.
+- **Delete** on a remote branch runs `git push <remote> --delete <name>`, which deletes it for everyone, so it always asks first.
+- Tags are created without a message as lightweight tags, or annotated (`git tag -a`) once you type one. **Check out** on a tag leaves you on that commit with no branch (a detached HEAD). **Delete** only removes your local copy, so a tag you already pushed stays on the remote.
+- **Remove** on a remote asks first. It drops that remote's branches from your clone but doesn't touch the server.
 - **Check out** on a remote branch runs `git switch --track <remote>/<name>`, which makes a local copy that tracks it.
 - **Revert** makes a new commit that undoes the old one, so it never rewrites history. If it conflicts with later changes, it stops in Merge Changes like a merge does. Merge commits don't get a Revert button.
-- Stash includes untracked files. If you've typed something in the commit message box, that becomes the stash's name. **Drop** asks first, since a dropped stash is basically gone.
+- Stash includes untracked files. **Stash staged** only takes what's staged and leaves everything else where it is. If you've typed something in the commit message box, that becomes the stash's name. **Drop** and **Drop all** ask first, since a dropped stash is basically gone.
 - If applying or popping a stash conflicts, git keeps the stash and the conflicted files show up in Merge Changes.
 - Merging into `main` or `master` asks first. Rebase always asks, since it rewrites your branch's commits (and if the branch is already pushed, you'll need a force push after).
 - Click a conflicted file to open it in the Files tab and fix it by hand, then hit **Resolved**. If the file still has conflict markers in it, the pane asks before staging it.
@@ -209,13 +218,18 @@ hooks/
   branches-view.tsx   the Branches view
   history-view.tsx    the History view, its graph and the activity chart
   stash-view.tsx      the Stash view
+  tags-view.tsx       the Tags view
+  remotes-view.tsx    the Remotes section at the bottom of Branches
   actions.ts          what the Files tab's buttons do: file reads and writes, and @ mentions
   activity.ts         watches Claude's file tools for the read and edit marks
   turn-actions.ts     before-edit copies, This Turn diffs and reverts, Review/Explain, and ✦ Message
   tree.ts             maps git and tool paths onto the file list (no Claude Code calls)
   git-actions.ts      what the Source Control buttons do, plus the background fetch
-  branch-actions.ts   new, rename, delete and check out remote branches
-  history-actions.ts  history, revert and stash
+  branch-actions.ts   new, rename, delete, and check out or delete remote branches
+  tag-actions.ts      create, check out, push and delete tags
+  remote-actions.ts   add and remove remotes
+  sync-actions.ts     Pull (rebase), Sync, Fetch all and Force push
+  history-actions.ts  history, revert, undo the last commit, and stash
   merge-actions.ts    merge, rebase, Continue/Abort and resolving conflicts
   repo.ts             shared git plumbing: running git, errors, reading repo status
   git.ts              parses git output (no Claude Code calls, so it's easy to test)

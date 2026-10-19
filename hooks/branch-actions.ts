@@ -1,13 +1,13 @@
-// What the Branches view's buttons do: new, rename, delete and checking out
-// a remote branch. Switching
-// lives with the other Source Control actions in git-actions.ts.
+// What the Branches view's buttons do: new (from where you are or another
+// ref), rename, delete, and checking out or deleting a remote branch.
+// Switching lives with the other Source Control actions in git-actions.ts.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface } from 'claude-code'
 
-import type { GitView } from '../types'
+import type { Confirm, GitView } from '../types'
 import { closeFile, refreshDir } from './actions'
-import { shortError } from './git'
-import { fail, git, gitOk, run } from './repo'
+import { shortError, splitRemoteRef } from './git'
+import { confirmed, fail, git, gitOk, run } from './repo'
 import { EMPTY_REPO } from './state'
 
 const branchFormState = atom({ plugin: 'workspace', key: 'branchForm' } as const, null)
@@ -22,8 +22,19 @@ export function showView($: $, view: GitView) {
   return update($, gitViewState, () => view)
 }
 
-export function startNewBranch($: $) {
-  return update($, branchFormState, () => ({ kind: 'new' as const, text: '' }))
+// `base` starts the box on another ref, like a commit picked in History.
+export function startNewBranch($: $, base?: string) {
+  return update($, branchFormState, () => ({ kind: 'new' as const, base, text: '' }))
+}
+
+// History's Branch button: opens the form in Branches, starting from that commit.
+export async function branchFromCommit($: $, sha: string) {
+  await startNewBranch($, sha)
+  await showView($, 'branches')
+}
+
+export function setBranchBase($: $, base: string) {
+  return update($, branchFormState, current => (current === null ? null : { ...current, base }))
 }
 
 export function startRename($: $, name: string) {
@@ -50,8 +61,8 @@ export async function saveBranchForm($: $) {
 
   await run($, form.kind === 'new' ? 'Creating' : 'Renaming', async () => {
     if (form.kind === 'new') {
-      await gitOk($, ['switch', '-c', name])
-      $.ui.toast(`Switched to new branch ${name}`)
+      await gitOk($, ['switch', '-c', name, ...(form.base === undefined ? [] : [form.base])])
+      $.ui.toast(form.base === undefined ? `Switched to new branch ${name}` : `Switched to new branch ${name} from ${form.base}`)
     } else {
       await gitOk($, ['branch', '-m', form.from ?? '', name])
       $.ui.toast(`Renamed ${form.from} to ${name}`)
@@ -97,5 +108,25 @@ export function checkoutRemote($: $, ref: string) {
     $.ui.toast(`Switched to ${ref.slice(ref.indexOf('/') + 1)}, tracking ${ref}`)
     if (!(await read($, isEditingState))) await closeFile($)
     await refreshDir($)
+  })
+}
+
+// Deletes the branch on the remote itself, so it always asks first.
+export async function deleteRemoteBranch($: $, ref: string) {
+  const { remotes } = await read($, repoState)
+  const split = splitRemoteRef(ref, remotes)
+  if (split === null) return fail($, new Error(`${ref} isn't on a known remote.`))
+
+  const ask: Confirm = {
+    action: 'delete-remote-branch',
+    path: ref,
+    question: `Delete ${split.name} on ${split.remote}? Anyone else using it loses it too.`,
+    yes: 'Yes, delete',
+  }
+  if (!(await confirmed($, ask))) return
+
+  await run($, 'Deleting', async () => {
+    await gitOk($, ['push', split.remote, '--delete', split.name])
+    $.ui.toast(`Deleted ${ref}`)
   })
 }

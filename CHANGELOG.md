@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.10.0 - Unreleased
+
+### 🌿 Branches
+
+- **+ New branch** has a **from** picker, so a branch can start from any local branch, remote branch or tag instead of only where you are.
+- Remote branches all show in Branches now, each with **Delete** (`git push <remote> --delete`, behind a confirm). **Check out** still only shows on the ones you don't have locally.
+- A **Remotes** section at the bottom of Branches adds and removes remotes.
+- Push reads **Publish** on a branch with no upstream yet.
+
+### 🏷️ Tags
+
+- A new **Tags** view lists tags newest first, with **+ New tag** (a message makes it annotated), **Push all**, and **Check out** (detached), **Push** and **Delete** per tag.
+
+### 🕘 History
+
+- Every commit gets **Branch** and **Tag** buttons that open the form starting from that commit.
+- The top commit gets **Undo**, which soft resets it and puts its message back in the commit box. It asks first if the commit is pushed.
+
+### 🔄 Sync
+
+- **⋯ More** in the sync card opens **Pull (rebase)**, **Sync** (pull then push), **Fetch all** (`--all --prune`) and **Force push** (`--force-with-lease`, behind a confirm).
+
+### 📦 Changes and Stash
+
+- **Unstage all** on the Staged Changes section.
+- The Stash view gets **Stash all**, **Stash staged** and **Drop all**.
+
 ## 0.9.0 - October 19, 2026
 
 ### ✎ This Turn
