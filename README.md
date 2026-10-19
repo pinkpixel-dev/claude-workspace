@@ -1,5 +1,9 @@
 # Workspace
 
+<p align="center">
+  <img src="cover.png" alt="Claw$h icon" width="800">
+</p>
+
 Workspace is a Claude Code mod that adds a pane for keeping up with what's happening in your project while Claude works. It marks the files Claude reads and edits, shows exactly what Claude changed this turn (with a diff and a way to undo it), keeps your usage limits in view, and can hand work back to Claude with a click. It also does most of your everyday git, plus a read-only look at your GitHub pull requests and issues, so you rarely need to leave Claude Code.
 
 What's in the pane:
